@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Assign Responsibility – CMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="assets/styles.css" />
+    <style>
+        .company-card {
+            border: 1.5px solid var(--clr-border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            background: var(--clr-surface);
+            transition: all .2s;
+            margin-bottom: 1rem;
+        }
+
+        .company-card:hover {
+            border-color: rgba(225, 29, 72, .4);
+            box-shadow: 0 4px 16px rgba(225, 29, 72, .08);
+        }
+
+        .admin-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            background: rgba(225, 29, 72, .08);
+            color: #e11d48;
+            border: 1px solid rgba(225, 29, 72, .25);
+            border-radius: 999px;
+            padding: .2rem .65rem;
+            font-size: .75rem;
+            font-weight: 700;
+        }
+
+        .admin-select-option {
+            padding: .6rem 1rem;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background .15s;
+            border: 1.5px solid transparent;
+        }
+
+        .admin-select-option:hover {
+            background: rgba(225, 29, 72, .05);
+        }
+
+        .admin-select-option.selected {
+            border-color: #e11d48;
+            background: rgba(225, 29, 72, .07);
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon" style="background:linear-gradient(135deg,#e11d48,#be123c)"><i
+                    class="bi bi-shield-lock"></i></div>
+            Super Admin
+        </div>
+        <div class="sidebar-nav">
+            <div class="nav-section-label">Complaints</div>
+            <a class="nav-link-item" id="nav-all" href="super-admin-dashboard.html"><i class="bi bi-list-ul"></i> All Complaints</a>
+            <a class="nav-link-item" id="nav-pending" href="super-admin-dashboard.html?filter=PENDING"><i class="bi bi-clock"></i> Pending</a>
+            <a class="nav-link-item" id="nav-forwarded" href="super-admin-dashboard.html?filter=FORWARD_ALL"><i class="bi bi-send"></i> Forwarded</a>
+            <a class="nav-link-item" id="nav-inprogress" href="super-admin-dashboard.html?filter=IN_PROGRESS"><i class="bi bi-arrow-repeat"></i> In Progress</a>
+            <a class="nav-link-item" id="nav-overdue" href="super-admin-dashboard.html?filter=OVERDUE"><i class="bi bi-exclamation-circle"></i> Overdue</a>
+            <a class="nav-link-item" id="nav-resolved" href="super-admin-dashboard.html?filter=RESOLVED"><i class="bi bi-shield-check"></i> Resolved</a>
+
+            <div class="nav-section-label">Administration</div>
+            <a class="nav-link-item" id="nav-req" href="admin-requests.html"><i class="bi bi-people"></i> Admin Requests</a>
+            <a class="nav-link-item active" id="nav-assign" href="responsibility-assign.html"><i class="bi bi-diagram-3"></i> Assign Responsibility</a>
+
+            <div class="nav-section-label">Account</div>
+            <a class="nav-link-item" href="login.html" onclick="CMS.logout()" style="color:var(--clr-danger)">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </a>
+        </div>
+    </nav>
+
+    <div class="main-wrapper">
+        <header class="topbar">
+            <div class="d-flex align-items-center gap-2">
+                <a href="super-admin-dashboard.html" class="btn-cms btn-outline-cms py-1 px-2"
+                    style="font-size:.8rem"><i class="bi bi-arrow-left"></i></a>
+                <span class="topbar-title">Assign Responsibility</span>
+            </div>
+        </header>
+
+        <main class="page-content">
+            <div class="row g-3">
+                <!-- Left: Companies & current assignments -->
+                <div class="col-lg-7">
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <h2 style="font-size:1.15rem;font-weight:700;margin:0"><i class="bi bi-building me-2"
+                                style="color:#e11d48"></i>Companies & Assignments</h2>
+                    </div>
+                    <div id="company-list"></div>
+                </div>
+
+                <!-- Right: Admins overview -->
+                <div class="col-lg-5">
+                    <div class="cms-card">
+                        <div class="cms-card-title mb-3"><i class="bi bi-person-gear me-2"
+                                style="color:#e11d48"></i>Available Admins</div>
+                        <div id="admin-overview"></div>
+                    </div>
+
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Reassign Modal -->
+    <div class="modal fade" id="reassignModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background:rgba(225,29,72,.06)">
+                    <h5 class="modal-title"><i class="bi bi-diagram-3 me-2" style="color:#e11d48"></i>Reassign Company
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <div style="font-size:.82rem;color:var(--clr-muted)">Company</div>
+                        <div style="font-weight:700;font-size:1rem" id="modal-company-name">—</div>
+                        <div style="font-size:.78rem;color:var(--clr-muted)" id="modal-company-id">—</div>
+                    </div>
+                    <div class="divider"></div>
+                    <div
+                        style="font-size:.82rem;font-weight:600;color:var(--clr-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.75rem">
+                        Select New Admin</div>
+                    <div id="admin-picker"></div>
+                    <div id="no-admin-msg" class="text-muted-cms text-center py-3"
+                        style="font-size:.85rem;display:none">No admins available.</div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-cms btn-outline-cms" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn-cms btn-danger-cms" id="confirm-reassign-btn" onclick="executeReassign()"
+                        style="background:#e11d48">
+                        <i class="bi bi-check-circle me-1"></i>Confirm Assignment
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/data-store.js"></script>
+    <script>
+        const session = CMS.requireAuth(['super_admin']);
+        if (!session) window.location.href = 'login.html';
+
+        let selectedCompanyId = null;
+        let selectedNewAdminId = null;
+
+        // Build companies list from complaints
+        function getCompanies() {
+            const all = CMS.getComplaints();
+            const map = {};
+            all.forEach(c => {
+                if (!map[c.companyId]) {
+                    map[c.companyId] = { id: c.companyId, name: c.companyName, complaints: [] };
+                }
+                map[c.companyId].complaints.push(c);
+            });
+            return Object.values(map);
+        }
+
+        function renderCompanies() {
+            const companies = getCompanies();
+            const admins = CMS.getAuthUsers().filter(u => u.role === 'admin');
+            const el = document.getElementById('company-list');
+
+            if (!companies.length) {
+                el.innerHTML = '<div class="empty-state"><i class="bi bi-building-x"></i><p>No companies found.</p></div>';
+                return;
+            }
+
+            el.innerHTML = companies.map(co => {
+                const currentAdmin = admins.find(a => a.assignedCompanies && a.assignedCompanies.includes(co.id));
+                const totalComplaints = co.complaints.length;
+                const active = co.complaints.filter(c => !['RESOLVED', 'REJECTED'].includes(c.status)).length;
+
+                return `
+                <div class="company-card">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <div style="font-weight:700;font-size:1rem">${co.name}</div>
+                            <div style="font-size:.75rem;color:var(--clr-muted)">${co.id}</div>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center">
+                            <span style="font-size:.75rem;color:var(--clr-muted)">${totalComplaints} complaints (${active} active)</span>
+                            <button class="btn-cms btn-outline-cms py-1 px-2" style="font-size:.78rem;border-color:rgba(225,29,72,.3);color:#e11d48" onclick="openReassignModal('${co.id}', '${co.name}')">
+                                <i class="bi bi-diagram-2 me-1"></i>Reassign
+                            </button>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span style="font-size:.78rem;color:var(--clr-muted)">Current Admin:</span>
+                        ${currentAdmin
+                        ? `<span class="admin-chip"><i class="bi bi-person-check"></i>${currentAdmin.name}</span>`
+                        : `<span class="text-muted-cms" style="font-size:.78rem"><i class="bi bi-person-dash me-1"></i>Unassigned</span>`
+                    }
+                    </div>
+                    <div class="mt-2" style="font-size:.73rem;color:var(--clr-muted)">
+                        ${co.complaints.slice(0, 3).map(c => `<span class="badge badge-sm me-1" style="background:rgba(100,116,139,.12);color:var(--clr-muted);font-size:.7rem">${c.id}</span>`).join('')}
+                        ${co.complaints.length > 3 ? `<span style="font-size:.73rem">+${co.complaints.length - 3} more</span>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderAdminOverview() {
+            const admins = CMS.getAuthUsers().filter(u => u.role === 'admin');
+            const el = document.getElementById('admin-overview');
+            if (!admins.length) { el.innerHTML = '<div class="text-muted-cms text-center py-3">No admins registered.</div>'; return; }
+            el.innerHTML = admins.map(a => {
+                const companies = getCompanies().filter(co => a.assignedCompanies && a.assignedCompanies.includes(co.id));
+                const activeComplaints = CMS.getComplaints(a.id).filter(c => !['RESOLVED', 'REJECTED'].includes(c.status)).length;
+                const initials = a.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                return `
+                <div class="d-flex gap-3 mb-3 p-2 rounded" style="background:var(--clr-surface2);border-radius:10px">
+                    <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#e11d48,#be123c);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.8rem;flex-shrink:0">${initials}</div>
+                    <div style="flex:1;overflow:hidden">
+                        <div style="font-weight:600;font-size:.88rem">${a.name}</div>
+                        <div style="font-size:.73rem;color:var(--clr-muted)">${companies.length} companies · ${activeComplaints} active complaints</div>
+                        <div style="margin-top:.25rem">
+                            ${companies.map(co => `<span class="admin-chip" style="font-size:.68rem;padding:.1rem .5rem;margin-right:.2rem">${co.name.split(' ')[0]}</span>`).join('')}
+                            ${companies.length === 0 ? '<span style="font-size:.72rem;color:var(--clr-muted)">No companies assigned</span>' : ''}
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function openReassignModal(companyId, companyName) {
+            selectedCompanyId = companyId;
+            selectedNewAdminId = null;
+            document.getElementById('modal-company-name').textContent = companyName;
+            document.getElementById('modal-company-id').textContent = companyId;
+            document.getElementById('confirm-reassign-btn').disabled = true;
+
+            const admins = CMS.getAuthUsers().filter(u => u.role === 'admin');
+            const picker = document.getElementById('admin-picker');
+
+            if (!admins.length) {
+                picker.innerHTML = '';
+                document.getElementById('no-admin-msg').style.display = 'block';
+            } else {
+                document.getElementById('no-admin-msg').style.display = 'none';
+                picker.innerHTML = admins.map(a => {
+                    const isCurrentAdmin = a.assignedCompanies && a.assignedCompanies.includes(companyId);
+                    const initials = a.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                    const activeCount = CMS.getComplaints(a.id).filter(c => !['RESOLVED', 'REJECTED'].includes(c.status)).length;
+                    return `
+                    <div class="admin-select-option ${isCurrentAdmin ? 'selected' : ''}" id="picker-${a.id}" onclick="selectAdmin('${a.id}')">
+                        <div class="d-flex gap-3 align-items-center">
+                            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#e11d48,#be123c);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.75rem">${initials}</div>
+                            <div>
+                                <div style="font-weight:600;font-size:.88rem">${a.name} ${isCurrentAdmin ? '(Current)' : ''}</div>
+                                <div style="font-size:.73rem;color:var(--clr-muted)">${activeCount} active complaints — ${a.email}</div>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+
+            new bootstrap.Modal(document.getElementById('reassignModal')).show();
+        }
+
+        function selectAdmin(adminId) {
+            selectedNewAdminId = adminId;
+            document.querySelectorAll('.admin-select-option').forEach(el => el.classList.remove('selected'));
+            const opt = document.getElementById(`picker-${adminId}`);
+            if (opt) opt.classList.add('selected');
+            document.getElementById('confirm-reassign-btn').disabled = false;
+        }
+
+        function executeReassign() {
+            if (!selectedCompanyId || !selectedNewAdminId) return;
+            const newAdmin = CMS.getUserById(selectedNewAdminId);
+            const result = CMS.assignResponsibility(selectedCompanyId, selectedNewAdminId);
+            if (result) {
+                bootstrap.Modal.getInstance(document.getElementById('reassignModal')).hide();
+                showToast(`Company reassigned to ${newAdmin.name} successfully!`, 'success');
+                renderCompanies();
+                renderAdminOverview();
+            } else {
+                showToast('Assignment failed. Please try again.', 'error');
+            }
+        }
+
+        renderCompanies();
+        renderAdminOverview();
+    </script>
+</body>
+
+</html>

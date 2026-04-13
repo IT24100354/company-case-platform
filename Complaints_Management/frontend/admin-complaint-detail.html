@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Complaint Detail – CMS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="assets/styles.css" />
+  <style>
+    .action-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: .6rem;
+    }
+
+    .evidence-file:hover .file-actions {
+      display: flex;
+    }
+
+    .file-actions {
+      display: none;
+    }
+
+    .resolution-section {
+      border: 1.5px solid rgba(22, 163, 74, .3);
+      background: rgba(22, 163, 74, .03);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+
+    .viewer-badge {
+      position: fixed;
+      bottom: 1.5rem;
+      left: calc(260px + 1.5rem);
+      background: var(--clr-primary);
+      color: #fff;
+      font-size: .78rem;
+      font-weight: 700;
+      padding: .4rem .9rem;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+    }
+  </style>
+</head>
+
+<body>
+
+  <nav class="sidebar">
+    <div class="sidebar-brand" id="sidebar-brand">
+      <div class="brand-icon"><i class="bi bi-shield-check"></i></div>
+      <span id="brand-label">CMS Admin</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-section-label">Overview</div>
+      <a class="nav-link-item" id="dash-link" href="admin-dashboard.html"><i class="bi bi-grid"></i> Dashboard</a>
+      <div class="nav-section-label">Actions</div>
+      <a class="nav-link-item active" href="#"><i class="bi bi-eye"></i> Complaint Detail</a>
+      <div class="nav-section-label">Account</div>
+      <a class="nav-link-item" href="login.html" onclick="CMS.logout()" style="color:var(--clr-danger)">
+        <i class="bi bi-box-arrow-right"></i> Logout
+      </a>
+    </div>
+  </nav>
+
+  <div class="main-wrapper">
+    <header class="topbar">
+      <div class="d-flex align-items-center gap-2">
+        <a id="back-btn" href="admin-dashboard.html" class="btn-cms btn-outline-cms py-1 px-2" style="font-size:.8rem">
+          <i class="bi bi-arrow-left"></i>
+        </a>
+        <span class="topbar-title" id="topbar-title">Complaint Detail</span>
+        <span id="topbar-status"></span>
+      </div>
+      <div class="topbar-right">
+        <div class="position-relative" style="cursor:pointer" onclick="toggleNotifPanel()">
+          <i class="bi bi-bell" style="font-size:1.2rem"></i>
+          <span class="notif-badge notif-count" id="notif-badge" style="display:none">0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Notification panel -->
+    <div id="notif-panel" class="cms-card"
+      style="display:none;position:fixed;top:64px;right:1.5rem;width:360px;z-index:200;max-height:420px;overflow-y:auto">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <span class="fw-semibold">Notifications</span>
+        <button class="btn-cms btn-outline-cms py-1 px-2" onclick="markAllRead()" style="font-size:.75rem">Mark all
+          read</button>
+      </div>
+      <div id="notif-list"></div>
+    </div>
+
+    <main class="page-content" id="page-content">
+      <div class="text-center py-5 text-muted-cms" id="loading-state">
+        <div class="spinner-border text-primary mb-3"></div>
+        <div>Loading complaint…</div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Viewer Role Badge -->
+  <div class="viewer-badge" id="viewer-badge" style="display:none">
+    <i class="bi bi-eye"></i> <span id="viewer-role-label">Admin</span>
+  </div>
+
+  <!-- Reject Modal -->
+  <div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-x-circle text-danger me-2"></i>Reject Complaint</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="cms-alert cms-alert-danger mb-3"><i class="bi bi-exclamation-triangle-fill"></i><span>This will
+              notify the employee that their complaint has been rejected.</span></div>
+          <div class="cms-form-group">
+            <label class="cms-label">Rejection Reason <span class="text-danger">*</span></label>
+            <textarea class="cms-textarea" id="reject-reason" rows="3"
+              placeholder="Explain why this complaint is being rejected…"></textarea>
+            <div class="invalid-feedback-msg" id="reject-reason-err">Rejection reason is required.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cms btn-outline-cms" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn-cms btn-danger-cms" onclick="doReject()"><i class="bi bi-x-circle me-1"></i>Confirm
+            Rejection</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Approve Modal -->
+  <div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-check-circle text-success me-2"></i>Approve Complaint</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="cms-alert cms-alert-info mb-3">
+            <i class="bi bi-info-circle-fill"></i>
+            <span>This will approve the complaint and forward it to the company for investigation. Please select a priority level and a deadline.</span>
+          </div>
+          
+          <div class="d-flex flex-column gap-2 mt-3">
+             <div class="cms-card p-3 shadow-none border" style="background: rgba(37,99,235,0.03)">
+                <div class="fw-bold mb-2 text-primary"><i class="bi bi-send-fill me-1"></i>Approve & Forward</div>
+                <div class="cms-form-group mb-3">
+                  <label class="cms-label">Priority Level <span class="text-danger">*</span></label>
+                  <select class="cms-select" id="forward-priority">
+                    <option value="">— Select priority —</option>
+                    <option value="LOW">Low (30 days)</option>
+                    <option value="MEDIUM">Medium (20 days)</option>
+                    <option value="HIGH">High (10 days)</option>
+                  </select>
+                  <div class="invalid-feedback-msg" id="priority-err">Please select a priority level.</div>
+                </div>
+                <button class="btn-cms btn-primary-cms w-100" onclick="doForward()">
+                   <i class="bi bi-send me-1"></i>Confirm & Forward to Company
+                </button>
+             </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cms btn-outline-cms" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reject Resolution Modal -->
+  <div class="modal fade" id="resolveRejectModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-x-circle text-danger me-2"></i>Reject Resolution</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="cms-form-group">
+            <label class="cms-label">Reason <span class="text-danger">*</span></label>
+            <textarea class="cms-textarea" id="resolve-reject-reason" rows="3"
+              placeholder="Why is the resolution unsatisfactory?"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cms btn-outline-cms" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn-cms btn-danger-cms" onclick="doRejectResolution()"><i
+              class="bi bi-x-circle me-1"></i>Reject Resolution</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Integrated Chat Drawer -->
+  <div id="chat-drawer" class="chat-drawer">
+    <div class="chat-drawer-header" id="drawer-header-bg">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-chat-square-text-fill"></i>
+        <span class="fw-bold" id="chat-header-title">Complaint Chat</span>
+      </div>
+      <button class="btn-close" style="filter:invert(1)" onclick="toggleChatDrawer()"></button>
+    </div>
+    <div class="chat-drawer-body">
+      <div id="chat-active" class="chat-active-screen active">
+        <div class="p-2 border-bottom d-flex align-items-center justify-content-end bg-light">
+          <div class="d-flex gap-1" id="chat-channel-toggle">
+            <button class="btn btn-sm btn-primary py-0 px-2" id="btn-ch-employee"
+              onclick="setChatChannel('employee')" style="font-size:.7rem">Employee</button>
+            <button class="btn btn-sm btn-outline-secondary py-0 px-2" id="btn-ch-company"
+              onclick="setChatChannel('company')" style="font-size:.7rem">Company</button>
+          </div>
+        </div>
+        <div id="chat-msg-container" class="flex-1 overflow-auto p-3" style="background:#fcfcfc"></div>
+        <div class="chat-drawer-footer">
+          <div class="d-flex gap-2">
+            <textarea id="chat-input" class="cms-input" rows="1" placeholder="Type a message…"
+              onkeydown="handleChatKey(event)"></textarea>
+            <button class="btn-cms btn-primary-cms" id="chat-send-btn" onclick="sendChatMsg()"><i class="bi bi-send"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/data-store.js"></script>
+  <script>
+    const session = CMS.requireAuth(['admin', 'super_admin']);
+    if (!session) window.location.href = 'login.html';
+
+    const isSuperAdmin = session.role.toLowerCase() === 'super_admin';
+    const params = new URLSearchParams(location.search);
+    const complaintId = params.get('id');
+
+    if (!complaintId) { location.href = isSuperAdmin ? 'super-admin-dashboard.html' : 'admin-dashboard.html'; }
+
+    // Role-based UI
+    if (isSuperAdmin) {
+      document.getElementById('dash-link').href = 'super-admin-dashboard.html';
+      document.getElementById('back-btn').href = 'super-admin-dashboard.html';
+      document.getElementById('brand-label').textContent = 'Super Admin';
+      document.querySelector('#sidebar-brand .brand-icon').style.background = 'linear-gradient(135deg,#e11d48,#be123c)';
+      document.getElementById('viewer-badge').style.display = 'flex';
+      document.getElementById('viewer-role-label').textContent = 'Super Admin View';
+    }
+
+    async function load() {
+      // Sync with MySQL
+      await CMS.fetchLiveComplaints();
+      const c = CMS.getComplaintById(complaintId);
+      if (!c) {
+        document.getElementById('page-content').innerHTML =
+          `<div class="text-center py-5"><i class="bi bi-exclamation-circle" style="font-size:3rem;color:var(--clr-danger)"></i><p class="mt-3">Complaint not found.</p></div>`;
+        return;
+      }
+
+      // Access check for admin (non-super admin cannot access other's complaints)
+      if (!isSuperAdmin && c.assignedAdminId && c.assignedAdminId != session.id) {
+        document.getElementById('page-content').innerHTML =
+          `<div class="text-center py-5"><i class="bi bi-shield-x" style="font-size:3rem;color:var(--clr-danger)"></i><p class="mt-3">Access denied. This complaint is not assigned to you.</p></div>`;
+        return;
+      }
+
+      document.getElementById('topbar-title').textContent = (c.dbId || c.id); // Show real DB ID
+      document.getElementById('topbar-status').innerHTML = CMS.statusBadge(c.status, 'admin');
+
+      const html = buildDetailHTML(c);
+      document.getElementById('page-content').innerHTML = html;
+      updateNotifBadge();
+    }
+
+    function buildDetailHTML(c) {
+      const canApproveAndForward = ['PENDING', 'APPROVED'].includes(c.status);
+      const canStartInv = c.status === 'VIEWED';
+      const canResolve = c.resolutionDoc && !['RESOLVED', 'REJECTED'].includes(c.status) && c.adminResolutionDecision !== 'APPROVED';
+
+      const evidenceHTML = c.evidence && c.evidence.length
+        ? c.evidence.map(ev => `
+        <div class="evidence-box evidence-file d-flex align-items-center gap-3 mb-2" style="position:relative">
+            <i class="bi ${CMS.evidenceIcon(ev.type)}" style="font-size:1.4rem;flex-shrink:0"></i>
+            <div style="flex:1">
+                <div style="font-weight:600;font-size:.88rem">${ev.name}</div>
+                <div style="font-size:.75rem;color:var(--clr-muted)">${ev.size}</div>
+            </div>
+            <div class="file-actions d-flex gap-1 ${ev.type === 'pdf' ? '' : 'd-none'}">
+                <button class="btn-cms btn-outline-cms py-1 px-2" style="font-size:.75rem" onclick="viewPdf('${c.id}')" title="View in browser">
+                    <i class="bi bi-eye me-1"></i>View
+                </button>
+            </div>
+            <button class="btn-cms btn-primary-cms py-1 px-2 ms-1" style="font-size:.75rem" onclick="generatePdf('${c.id}')" title="Download Report">
+                <i class="bi bi-download me-1"></i>Download
+            </button>
+        </div>`).join('')
+        : `<div class="text-muted-cms" style="font-size:.85rem"><i class="bi bi-file-earmark-x me-2"></i>No evidence attached</div>`;
+
+      const timelineHTML = c.statusHistory.map((h, i) => {
+        const isLast = i === c.statusHistory.length - 1;
+        const dotClass = h.status === 'REJECTED' || h.status === 'OVERDUE' ? 'red' : (isLast ? 'active' : 'done');
+        return `<div class="timeline-item">
+        <div class="timeline-dot ${dotClass}"></div>
+        <div class="timeline-text">${h.status}</div>
+        <div class="timeline-time">${CMS.fmtDateTime(h.at)} — by ${h.by}</div>
+      </div>`;
+      }).join('');
+
+      const resolutionHTML = c.resolutionDoc ? `
+    <div class="resolution-section d-flex align-items-center gap-3">
+        <i class="bi bi-file-earmark-check-fill" style="font-size:2rem;color:#16a34a"></i>
+        <div style="flex:1">
+            <div style="font-weight:700;color:#16a34a">Resolution Document Submitted</div>
+            <div style="font-size:.82rem;color:var(--clr-muted)">${c.resolutionDoc.name} — ${CMS.fmtDateTime(c.resolutionSubmittedAt)}</div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn-cms btn-outline-cms py-1 px-2" style="font-size:.78rem" onclick="viewPdf('${c.id}')"><i class="bi bi-eye me-1"></i>View</button>
+            <button class="btn-cms btn-outline-cms py-1 px-2" style="font-size:.78rem" onclick="generatePdf('${c.id}')"><i class="bi bi-download me-1"></i>Download</button>
+            ${canResolve ? `
+            <button class="btn-cms btn-success-cms py-1 px-2" style="font-size:.78rem" onclick="doApproveResolution()"><i class="bi bi-check-circle me-1"></i>Accept Resolution</button>
+            <button class="btn-cms btn-danger-cms py-1 px-2" style="font-size:.78rem" onclick="new bootstrap.Modal(document.getElementById('resolveRejectModal')).show()"><i class="bi bi-x-circle me-1"></i>Reject</button>
+            ` : ''}
+        </div>
+    </div>` : '';
+
+      const adminRejReason = c.adminResolutionDecision === 'REJECTED'
+        ? `<div class="cms-alert cms-alert-danger mt-2"><i class="bi bi-x-circle-fill"></i><div><strong>Resolution Rejected</strong><br>${c.adminResolutionRejectionReason}</div></div>` : '';
+
+      return `
+    <div class="row g-3">
+      <!-- Left col -->
+      <div class="col-lg-8">
+        <div class="cms-card mb-3">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <h2 style="font-size:1.15rem;font-weight:700;margin:0">${c.title}</h2>
+                    <span class="text-muted-cms" style="font-size:.82rem">${c.category} • ${c.id}</span>
+                </div>
+                <div class="d-flex gap-2">
+                    ${CMS.statusBadge(c.status, 'admin')}
+                    ${CMS.priorityBadge(c.priority)}
+                </div>
+            </div>
+            <p style="font-size:.88rem;line-height:1.75;color:var(--clr-text)">${c.description}</p>
+
+            <!-- Evidence/Documents -->
+            <div class="divider"></div>
+            <div class="cms-card-title mb-2"><i class="bi bi-paperclip me-2"></i>Evidence & Documents</div>
+            ${evidenceHTML}
+
+            <!-- Resolution section -->
+            ${resolutionHTML}
+            ${adminRejReason}
+        </div>
+
+        ${c.rejectionReason ? `
+        <div class="cms-alert cms-alert-danger">
+            <i class="bi bi-x-circle-fill"></i>
+            <div><strong>Rejection Reason:</strong><br>${c.rejectionReason}</div>
+        </div>` : ''}
+
+        <!-- Actions -->
+        ${!['RESOLVED', 'REJECTED'].includes(c.status) ? `
+        <div class="cms-card mb-3">
+            <div class="cms-card-title mb-3">Actions</div>
+            <div class="action-grid">
+                ${canApproveAndForward ? `<button class="btn-cms btn-success-cms" onclick="new bootstrap.Modal(document.getElementById('approveModal')).show()"><i class="bi bi-check-circle me-1"></i>Approve</button>` : ''}
+                ${c.status === 'PENDING' ? `<button class="btn-cms btn-danger-cms" onclick="new bootstrap.Modal(document.getElementById('rejectModal')).show()"><i class="bi bi-x-circle me-1"></i>Reject</button>` : ''}
+                ${!canApproveAndForward && c.status === 'APPROVED' ? `<button class="btn-cms btn-primary-cms" onclick="new bootstrap.Modal(document.getElementById('approveModal')).show()"><i class="bi bi-send me-1"></i>Forward to Company</button>` : ''}
+                ${canStartInv ? `<button class="btn-cms btn-purple-cms" onclick="doStartInvestigation()"><i class="bi bi-search me-1"></i>Start Investigation</button>` : ''}
+            </div>
+        </div>
+        ` : `
+        <div class="cms-alert ${c.status === 'RESOLVED' ? 'cms-alert-success' : 'cms-alert-danger'}">
+            <i class="bi bi-${c.status === 'RESOLVED' ? 'shield-check' : 'x-circle'}-fill"></i>
+            <span>This complaint is <strong>${c.status}</strong>${c.resolvedAt ? ` on ${CMS.fmtDateTime(c.resolvedAt)}` : ''}.</span>
+        </div>`}
+      </div>
+
+      <!-- Right col -->
+      <div class="col-lg-4">
+        <!-- Employee info -->
+        <div class="cms-card mb-3">
+            <div class="cms-card-title mb-3"><i class="bi bi-person-badge me-2" style="color:#16a34a"></i>Employee</div>
+            <div class="detail-grid">
+                <div><div class="detail-item-label">Name</div><div class="detail-item-value">${c.employeeName}</div></div>
+                <div><div class="detail-item-label">ID</div><div class="detail-item-value">${c.employeeId}</div></div>
+                <div style="grid-column:span 2"><div class="detail-item-label">Email</div><div class="detail-item-value" style="font-size:.82rem">${c.employeeEmail}</div></div>
+                <div style="grid-column:span 2"><div class="detail-item-label">Department</div><div class="detail-item-value">${c.employeeDept}</div></div>
+            </div>
+        </div>
+
+        <!-- Company info -->
+        <div class="cms-card mb-3">
+            <div class="cms-card-title mb-3"><i class="bi bi-building me-2" style="color:#7c3aed"></i>Company</div>
+            <div class="detail-grid">
+                <div style="grid-column:span 2"><div class="detail-item-label">Name</div><div class="detail-item-value">${c.companyName}</div></div>
+                <div style="grid-column:span 2"><div class="detail-item-label">Company ID</div><div class="detail-item-value">${c.companyId}</div></div>
+            </div>
+        </div>
+
+        <!-- Key Dates -->
+        <div class="cms-card mb-3">
+            <div class="cms-card-title mb-3"><i class="bi bi-calendar3 me-2"></i>Key Dates</div>
+            <div class="detail-grid">
+                <div><div class="detail-item-label">Submitted</div><div class="detail-item-value" style="font-size:.82rem">${CMS.fmtDate(c.submittedAt)}</div></div>
+                ${c.approvedAt ? `<div><div class="detail-item-label">Approved</div><div class="detail-item-value" style="font-size:.82rem">${CMS.fmtDate(c.approvedAt)}</div></div>` : ''}
+                ${c.forwardedAt ? `<div><div class="detail-item-label">Forwarded</div><div class="detail-item-value" style="font-size:.82rem">${CMS.fmtDate(c.forwardedAt)}</div></div>` : ''}
+                ${c.dueDate ? `<div><div class="detail-item-label">Due Date</div><div class="detail-item-value" style="font-size:.82rem;color:${c.status === 'OVERDUE' ? 'var(--clr-danger)' : 'inherit'};font-weight:${c.status === 'OVERDUE' ? '700' : '400'}">${CMS.fmtDate(c.dueDate)}</div></div>` : ''}
+                ${c.resolvedAt ? `<div style="grid-column:span 2"><div class="detail-item-label">Resolved</div><div class="detail-item-value" style="font-size:.82rem;color:#16a34a">${CMS.fmtDatetime(c.resolvedAt)}</div></div>` : ''}
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="cms-card">
+            <div class="cms-card-title mb-3"><i class="bi bi-clock-history me-2"></i>Status History</div>
+            <div class="timeline">${timelineHTML}</div>
+        </div>
+      </div>
+    </div>`;
+    }
+
+    async function doApprove() {
+      await CMS.approveComplaint(complaintId, session.name);
+      const modal = bootstrap.Modal.getInstance(document.getElementById('approveModal'));
+      if (modal) modal.hide();
+      showToast('Complaint approved!', 'success');
+      setTimeout(() => { load(); updateNotifBadge(); }, 400);
+    }
+
+    async function doReject() {
+      const reason = document.getElementById('reject-reason').value.trim();
+      if (!reason) {
+        document.getElementById('reject-reason').classList.add('is-invalid');
+        document.getElementById('reject-reason-err').classList.add('show');
+        return;
+      }
+      await CMS.rejectComplaint(complaintId, reason, session.name);
+      bootstrap.Modal.getInstance(document.getElementById('rejectModal')).hide();
+      showToast('Complaint rejected.', 'info');
+      setTimeout(() => { load(); updateNotifBadge(); }, 400);
+    }
+
+    async function doForward() {
+      const priority = document.getElementById('forward-priority').value;
+      if (!priority) {
+        document.getElementById('forward-priority').classList.add('is-invalid');
+        document.getElementById('priority-err').classList.add('show');
+        return;
+      }
+      await CMS.forwardComplaint(complaintId, priority, session.name);
+      const modal = bootstrap.Modal.getInstance(document.getElementById('approveModal'));
+      if (modal) modal.hide();
+      showToast(`Complaint forwarded with ${priority} priority.`, 'success');
+      setTimeout(() => { load(); updateNotifBadge(); }, 400);
+    }
+
+
+    function doStartInvestigation() {
+      CMS.startInvestigation(complaintId);
+      showToast('Investigation started!', 'success');
+      setTimeout(() => { load(); updateNotifBadge(); }, 400);
+    }
+
+    function doApproveResolution() {
+      CMS.approveResolution(complaintId, session.name);
+      showToast('Resolution accepted! Complaint resolved.', 'success');
+      setTimeout(() => { load(); updateNotifBadge(); }, 400);
+    }
+
+    function doRejectResolution() {
+      const reason = document.getElementById('resolve-reject-reason').value.trim();
+      if (!reason) { showToast('Please provide a reason.', 'error'); return; }
+      CMS.rejectResolution(complaintId, reason, session.name);
+      bootstrap.Modal.getInstance(document.getElementById('resolveRejectModal')).hide();
+      showToast('Resolution rejected. Company must resubmit.', 'info');
+      setTimeout(() => { load(); updateNotifBadge(); }, 400);
+    }
+
+    function toggleNotifPanel() {
+      const p = document.getElementById('notif-panel');
+      p.style.display = p.style.display === 'none' ? 'block' : 'none';
+      renderNotifList();
+    }
+
+    function renderNotifList() {
+      const role = isSuperAdmin ? 'super_admin' : 'admin';
+      const list = CMS.getNotifications(role, !isSuperAdmin ? session.id : null).slice(0, 20);
+      const el = document.getElementById('notif-list');
+      if (!list.length) { el.innerHTML = '<div class="text-muted-cms text-center py-3">No notifications</div>'; return; }
+      el.innerHTML = list.map(n => `
+    <div class="d-flex gap-2 mb-2 p-2 rounded" style="background:${n.read ? 'transparent' : 'rgba(37,99,235,.08)'};cursor:pointer" onclick="CMS.markNotifRead(${n.id});renderNotifList();updateNotifBadge()">
+      <i class="bi bi-bell mt-1" style="color:var(--clr-primary);flex-shrink:0"></i>
+      <div><div style="font-size:.82rem;font-weight:600">${n.title}</div><div style="font-size:.77rem;color:var(--clr-muted)">${n.body}</div><div style="font-size:.7rem;color:var(--clr-muted);margin-top:2px">${timeAgo(n.at)}</div></div>
+    </div>`).join('');
+    }
+
+    function markAllRead() {
+      const role = isSuperAdmin ? 'super_admin' : 'admin';
+      CMS.getNotifications(role, !isSuperAdmin ? session.id : null).forEach(n => CMS.markNotifRead(n.id));
+      renderNotifList(); updateNotifBadge();
+    }
+
+    let chatOpen = false;
+    let activeChatChannel = 'employee';
+
+    function toggleChatDrawer() {
+      chatOpen = !chatOpen;
+      const drawer = document.getElementById('chat-drawer');
+      drawer.classList.toggle('open', chatOpen);
+      if (isSuperAdmin) {
+         document.getElementById('drawer-header-bg').style.background = 'linear-gradient(135deg,#e11d48,#be123c)';
+         document.getElementById('chat-send-btn').style.background = '#e11d48';
+         document.getElementById('chat-send-btn').style.borderColor = '#e11d48';
+      }
+      if (chatOpen) {
+          CMS.markMessagesRead(complaintId, activeChatChannel, 'admin');
+          renderChatMessages();
+      }
+    }
+
+    function setChatChannel(ch) {
+      activeChatChannel = ch;
+      document.getElementById('btn-ch-employee').className = ch === 'employee' ? 'btn btn-sm btn-primary py-0 px-2' : 'btn btn-sm btn-outline-secondary py-0 px-2';
+      document.getElementById('btn-ch-company').className = ch === 'company' ? 'btn btn-sm btn-primary py-0 px-2' : 'btn btn-sm btn-outline-secondary py-0 px-2';
+      CMS.markMessagesRead(complaintId, ch, 'admin');
+      renderChatMessages();
+    }
+
+    function renderChatMessages() {
+      const c = CMS.getComplaintById(complaintId);
+      const container = document.getElementById('chat-msg-container');
+      const msgs = c?.messages?.[activeChatChannel] || [];
+      if (!msgs.length) {
+        container.innerHTML = `<div class="text-center py-4 text-muted-cms">No messages yet.</div>`;
+        return;
+      }
+      container.innerHTML = msgs.map(m => {
+        if (m.isStatusUpdate || m.sender === 'system') {
+            return `<div style="text-align:center;margin:4px 0"><span style="background:rgba(37,99,235,.1);color:var(--clr-primary);font-size:.73rem;padding:.3rem .75rem;border-radius:999px;display:inline-block">${m.text}</span></div>`;
+        }
+        const isSent = m.sender === 'admin';
+        const tick = isSent ? (m.status === 'read' ? '✓✓' : '✓') : '';
+        const tickClass = isSent ? (m.status === 'read' ? 'color:#34d399' : 'color:rgba(255,255,255,.7)') : '';
+        return `
+        <div class="chat-bubble-new ${isSent ? 'sent' : 'received'}">
+            ${!isSent ? `<div style="font-size:.68rem;color:var(--clr-muted);margin-bottom:2px">${m.senderName || m.sender}</div>` : ''}
+            <div class="chat-bubble-content">${m.text}</div>
+            ${m.isSuperAdmin ? `<div style="font-size:.65rem;color:#e11d48;font-weight:700;margin-top:2px;text-align:right">Super Admin</div>` : ''}
+            <div class="${isSent ? 'msg-meta' : 'msg-meta received-meta'}" style="font-size:.65rem;margin-top:2px;display:flex;align-items:center;gap:2px;${isSent?'justify-content:flex-end;color:rgba(255,255,255,.7)':'justify-content:flex-start;color:var(--clr-muted)'}">
+                <span>${timeAgo(m.at)}</span>
+                ${isSent ? `<span style="font-size:.65rem;margin-left:3px;${tickClass}">${tick}</span>` : ''}
+            </div>
+        </div>`;
+      }).join('');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function sendChatMsg() {
+      const input = document.getElementById('chat-input');
+      const val = input.value.trim();
+      if (!val) return;
+      CMS.sendMessage(complaintId, activeChatChannel, 'admin', val, session.name, isSuperAdmin);
+      renderChatMessages();
+      input.value = '';
+    }
+
+    function handleChatKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMsg(); }
+    }
+
+    document.addEventListener('click', e => {
+      const p = document.getElementById('notif-panel');
+      const drawer = document.getElementById('chat-drawer');
+      if (p && p.style.display !== 'none' && !p.contains(e.target) && !e.target.closest('[onclick="toggleNotifPanel()"]')) p.style.display = 'none';
+      if (chatOpen && drawer && !drawer.contains(e.target) && !e.target.closest('[onclick="toggleChatDrawer()"]')) toggleChatDrawer();
+    });
+
+    load();
+    updateNotifBadge();
+  </script>
+</body>
+
+</html>

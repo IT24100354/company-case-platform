@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Super Admin Dashboard</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+
+<body class="dash">
+
+<aside class="sidebar" id="sidebar">
+  <div class="brand">Complaint Platform</div>
+
+  <nav class="nav">
+    <a class="nav-item active" href="/super-admin/dashboard">Dashboard</a>
+    <a class="nav-item" href="#">Admin Requests</a>
+    <a class="nav-item" href="#">Admins</a>
+    <a class="nav-item" href="#">Companies</a>
+    <a class="nav-item" href="/logout">Logout</a>
+  </nav>
+</aside>
+
+<div class="content">
+  <header class="topbar">
+    <button class="icon-btn" id="toggleSidebar" aria-label="Toggle sidebar">☰</button>
+
+    <div class="topbar-right">
+      <div class="pill">
+        Logged in as:
+        <b>superadmin</b>
+        <span class="dot"></span>
+        <span>ROLE_SUPER_ADMIN</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="title-row">
+      <h1>Super Admin Dashboard</h1>
+      <div class="muted" id="todayText"></div>
+    </div>
+
+    <section class="cards">
+      <div class="card-value" id="totalCount">0</div>
+      <div class="card-value" id="pendingCount">0</div>
+      <div class="card-value" id="resolvedCount">0</div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Recent Admin Requests</h2>
+        <input class="input small" placeholder="Search..." />
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>Request ID</th>
+            <th>Name</th>
+            <th>Company</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+          </thead>
+
+          <tbody>
+          <tr>
+            <td>#R-2001</td>
+            <td>Kasun Perera</td>
+            <td>ABC Pvt Ltd</td>
+            <td><span class="badge warn">Pending</span></td>
+            <td>2026-03-01</td>
+          </tr>
+
+          <tr>
+            <td>#R-2002</td>
+            <td>Amaya Silva</td>
+            <td>XYZ Lanka</td>
+            <td><span class="badge ok">Approved</span></td>
+            <td>2026-03-01</td>
+          </tr>
+
+          <tr>
+            <td>#R-2003</td>
+            <td>Nimal Fernando</td>
+            <td>Nova Solutions</td>
+            <td><span class="badge warn">Pending</span></td>
+            <td>2026-02-28</td>
+          </tr>
+          </tbody>
+
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+  // Just to show date (optional)
+  const el = document.getElementById("todayText");
+  if (el) el.textContent = new Date().toDateString();
+</script>
+</body>
+</html>

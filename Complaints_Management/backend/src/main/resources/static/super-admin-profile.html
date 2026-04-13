@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Admin Profile - CMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="assets/styles.css" />
+    <style>
+        :root {
+            --clr-sa-primary: #e11d48;
+            --sidebar-width: 260px;
+        }
+
+        .sa-sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            background: #111827;
+            color: #fff;
+            z-index: 1000;
+        }
+
+        .sa-sidebar .nav-link {
+            color: #9ca3af;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+        .sa-sidebar .nav-link:hover, .sa-sidebar .nav-link.active {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid var(--clr-sa-primary);
+        }
+
+        .sa-main {
+            margin-left: var(--sidebar-width);
+            padding: 40px;
+            min-height: 100vh;
+            background: #f8fafc;
+        }
+
+        .profile-card {
+            background: #fff;
+            border-radius: 20px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            max-width: 600px;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+
+        .profile-header {
+            background: linear-gradient(135deg, var(--clr-sa-primary), #9f1239);
+            padding: 40px;
+            text-align: center;
+            color: #fff;
+        }
+
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            background: #fff;
+            color: var(--clr-sa-primary);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 800;
+            margin: 0 auto 16px;
+            box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-label {
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: #475569;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .form-control {
+            border-radius: 12px;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            transition: 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--clr-sa-primary);
+            box-shadow: 0 0 0 4px rgba(225, 29, 72, 0.1);
+        }
+
+        .btn-update {
+            background: var(--clr-sa-primary);
+            color: #fff;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-weight: 700;
+            width: 100%;
+            transition: 0.2s;
+        }
+
+        .btn-update:hover {
+            background: #be123c;
+            transform: translateY(-2px);
+        }
+
+        .profile-img-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: -60px auto 20px;
+            border-radius: 30px;
+            background: #fff;
+            padding: 5px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            cursor: pointer;
+        }
+
+        .profile-img {
+            width: 100%;
+            height: 100%;
+            border-radius: 25px;
+            object-fit: cover;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--clr-sa-primary);
+        }
+
+        .profile-img-overlay {
+            position: absolute;
+            inset: 5px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            opacity: 0;
+            transition: 0.2s;
+        }
+
+        .profile-img-container:hover .profile-img-overlay {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sa-sidebar">
+        <div class="p-4 d-flex align-items-center gap-3">
+            <div style="background:var(--clr-sa-primary); width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+                <i class="bi bi-shield-lock"></i>
+            </div>
+            <span class="fw-bold fs-5">CMS Super</span>
+        </div>
+        <nav class="mt-4">
+            <a href="super-admin-dashboard.html" class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+            <a href="super-admin-communication.html" class="nav-link"><i class="bi bi-chat-dots"></i> Communication</a>
+            <a href="super-admin-profile.html" class="nav-link active"><i class="bi bi-person-circle"></i> Profile</a>
+            <div class="mt-auto p-4 position-absolute bottom-0 w-100">
+                <a href="login.html" onclick="CMS.logout()" class="nav-link text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
+            </div>
+        </nav>
+    </aside>
+
+    <main class="sa-main">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 fw-bold mb-0">System Profile</h1>
+            <div class="user-info d-flex align-items-center gap-2">
+                <div style="text-align: right">
+                    <div class="fw-bold small" id="sa-top-name">Braveena</div>
+                    <div class="text-muted" style="font-size: 0.7rem">Super Administrator</div>
+                </div>
+                <div class="avatar-small" id="user-avatar" style="width:40px; height:40px; border-radius:12px; background:var(--clr-sa-primary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700">B</div>
+            </div>
+        </div>
+
+        <div class="profile-card">
+            <div class="profile-header" style="height: 120px; padding: 0;"></div>
+            <div class="p-5" style="padding-top: 0 !important;">
+                
+                <div class="profile-img-container" onclick="document.getElementById('file-input').click()">
+                    <div id="profile-preview" class="profile-img">S</div>
+                    <div class="profile-img-overlay">
+                        <i class="bi bi-camera-fill fs-4"></i>
+                    </div>
+                </div>
+                <input type="file" id="file-input" hidden accept=".jpg,.jpeg,.png" onchange="previewImage(this)">
+
+                <h4 class="text-center fw-bold mb-1" id="profile-display-name">Super Admin</h4>
+                <p class="text-center mb-4 opacity-75 small">System Administrator</p>
+
+                <div id="alert-box" style="display: none;"></div>
+
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" id="full-name" class="form-control" placeholder="Enter full name">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" id="username" class="form-control" readonly style="background:#f8fafc; color:#64748b">
+                    <small class="text-muted">Username cannot be changed.</small>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="form-group">
+                    <label class="form-label">New Password</label>
+                    <input type="password" id="new-password" class="form-control" placeholder="Leave blank to keep current">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Confirm New Password</label>
+                    <input type="password" id="confirm-password" class="form-control" placeholder="Confirm new password">
+                </div>
+
+                <button class="btn-update" onclick="submitProfile()">Update Account Settings</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="assets/data-store.js"></script>
+    <script>
+        const session = CMS.requireAuth(['super_admin']);
+        let selectedFile = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('full-name').value = session.fullName;
+            document.getElementById('username').value = session.username;
+            document.getElementById('profile-display-name').textContent = session.fullName;
+            document.getElementById('sa-top-name').textContent = session.fullName;
+            updateAvatar(session);
+        });
+
+        function updateAvatar(u) {
+            const preview = document.getElementById('profile-preview');
+            const topAv = document.getElementById('user-avatar');
+            
+            if (u.profileImageUrl) {
+                const img = `<img src="${u.profileImageUrl}" style="width:100%; height:100%; border-radius:12px; object-fit:cover;">`;
+                preview.innerHTML = `<img src="${u.profileImageUrl}" style="width:100%; height:100%; border-radius:25px; object-fit:cover;">`;
+                topAv.innerHTML = img;
+            } else {
+                preview.textContent = u.fullName[0];
+                topAv.textContent = u.fullName[0];
+            }
+        }
+
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (!['jpg','jpeg','png'].includes(ext)) {
+                    showAlert('Please select a valid image (JPG, PNG).', 'danger');
+                    input.value = '';
+                    return;
+                }
+                selectedFile = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const preview = document.getElementById('profile-preview');
+                    preview.innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; border-radius:25px; object-fit:cover;">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function submitProfile() {
+            const fullName = document.getElementById('full-name').value;
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+
+            if (newPassword && newPassword !== confirmPassword) {
+                showAlert('Passwords do not match.', 'danger');
+                return;
+            }
+
+            try {
+                // 1. Upload image if selected
+                if (selectedFile) {
+                    const formData = new FormData();
+                    formData.append('id', session.id);
+                    formData.append('file', selectedFile);
+
+                    const imgResp = await fetch('/api/auth/profile/image', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    if (imgResp.ok) {
+                        const imgData = await imgResp.json();
+                        session.profileImageUrl = imgData.url;
+                    }
+                }
+
+                // 2. Update text fields
+                const resp = await fetch('/api/auth/profile/update', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        id: session.id,
+                        fullName: fullName,
+                        password: newPassword || null
+                    })
+                });
+
+                if (resp.ok) {
+                    const data = await resp.json();
+                    session.fullName = data.fullName;
+                    // Use sessionStorage to match dashboard and data-store.js
+                    sessionStorage.setItem('cms_session', JSON.stringify(session));
+                    
+                    document.getElementById('profile-display-name').textContent = session.fullName;
+                    const topbarName = document.getElementById('sa-top-name');
+                    if (topbarName) topbarName.textContent = session.fullName;
+                    
+                    updateAvatar(session);
+                    showAlert('Profile updated successfully!', 'success');
+                    
+                    // Clear passwords
+                    document.getElementById('new-password').value = '';
+                    document.getElementById('confirm-password').value = '';
+                    selectedFile = null;
+                } else {
+                    showAlert('Failed to update profile.', 'danger');
+                }
+            } catch (err) {
+                console.error("Profile update error:", err);
+                showAlert('An error occurred during update.', 'danger');
+            }
+        }
+
+        function showAlert(msg, type) {
+            const alertBox = document.getElementById('alert-box');
+            alertBox.className = `alert alert-${type} mb-4`;
+            alertBox.textContent = msg;
+            alertBox.style.display = 'block';
+            setTimeout(() => { alertBox.style.display = 'none'; }, 3000);
+        }
+    </script>
+</body>
+</html>

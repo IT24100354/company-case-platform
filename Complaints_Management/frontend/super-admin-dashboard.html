@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Super Admin Dashboard – CMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="assets/styles.css" />
+    <style>
+        .profile-dropdown {
+            position: fixed;
+            top: 64px;
+            right: 1.5rem;
+            width: 320px;
+            z-index: 300;
+            background: var(--clr-surface);
+            border: 1px solid var(--clr-border);
+            border-radius: 14px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, .12);
+            display: none;
+            overflow: hidden;
+        }
+
+        .profile-header-bg {
+            background: linear-gradient(135deg, #e11d48, #be123c);
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .profile-avatar-large {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, .6);
+            margin: 0 auto .75rem;
+            background: rgba(255, 255, 255, .2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .profile-avatar-large img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .profile-avatar-large .avatar-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, .4);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .profile-avatar-large:hover .avatar-overlay {
+            display: flex;
+        }
+
+        .profile-info-row {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            padding: .7rem 1rem;
+            border-bottom: 1px solid var(--clr-border);
+        }
+
+        .profile-info-row i {
+            color: var(--clr-muted);
+            width: 16px;
+        }
+
+        .profile-info-row span {
+            font-size: .82rem;
+            color: var(--clr-text);
+        }
+
+        .msg-tick {
+            font-size: .65rem;
+            margin-left: 3px;
+        }
+
+        .msg-tick.single {
+            color: rgba(255, 255, 255, .5);
+        }
+
+        .msg-tick.double {
+            color: #4ade80;
+        }
+
+        .msg-meta {
+            font-size: .65rem;
+            color: rgba(255, 255, 255, .7);
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            justify-content: flex-end;
+            margin-top: 2px;
+        }
+
+        .msg-meta.received-meta {
+            color: var(--clr-muted);
+            justify-content: flex-start;
+        }
+
+        .admin-thread-item {
+            padding: .8rem 1rem;
+            border-radius: 10px;
+            border: 1px solid var(--clr-border);
+            margin-bottom: .6rem;
+            cursor: pointer;
+            transition: all .2s;
+            background: var(--clr-surface);
+        }
+
+        .admin-thread-item:hover {
+            border-color: #e11d48;
+            background: rgba(225, 29, 72, .02);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon" style="background:linear-gradient(135deg,#e11d48,#be123c)"><i
+                    class="bi bi-shield-lock"></i></div>
+            Super Admin
+        </div>        <div class="sidebar-nav">
+            <div class="nav-section-label">Complaints</div>
+            <a class="nav-link-item" id="nav-all" href="#" onclick="filterComplaints('ALL')"><i class="bi bi-list-ul"></i> All Complaints</a>
+            <a class="nav-link-item" id="nav-pending" href="#" onclick="filterComplaints('PENDING')"><i class="bi bi-clock"></i> Pending</a>
+            <a class="nav-link-item" id="nav-forwarded" href="#" onclick="filterComplaints('FORWARD_ALL')"><i class="bi bi-send"></i> Forwarded</a>
+            <a class="nav-link-item" id="nav-inprogress" href="#" onclick="filterComplaints('IN_PROGRESS')"><i class="bi bi-arrow-repeat"></i> In Progress</a>
+            <a class="nav-link-item" id="nav-overdue" href="#" onclick="filterComplaints('OVERDUE')"><i class="bi bi-exclamation-circle"></i> Overdue</a>
+            <a class="nav-link-item" id="nav-resolved" href="#" onclick="filterComplaints('RESOLVED')"><i class="bi bi-shield-check"></i> Resolved</a>
+
+            <div class="nav-section-label">Administration</div>
+            <a class="nav-link-item" id="nav-req" href="admin-requests.html"><i class="bi bi-people"></i> Admin Requests
+                <span id="req-badge"
+                    style="display:none;background:#e11d48;color:#fff;font-size:.62rem;border-radius:999px;padding:1px 6px;margin-left:auto">0</span>
+            </a>
+            <a class="nav-link-item" id="nav-assign" href="responsibility-assign.html"><i class="bi bi-diagram-3"></i> Assign
+                Responsibility</a>
+
+            <div class="nav-section-label">Account</div>
+
+            <a class="nav-link-item" href="login.html" onclick="CMS.logout()" style="color:var(--clr-danger)">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main -->
+    <div class="main-wrapper">
+        <header class="topbar">
+            <span class="topbar-title">Super Admin Dashboard</span>
+            <div class="topbar-right">
+                <div class="position-relative" style="cursor:pointer" onclick="toggleNotifPanel()">
+                    <i class="bi bi-bell" style="font-size:1.2rem"></i>
+                    <span class="notif-badge notif-count" id="notif-badge" style="display:none">0</span>
+                </div>
+                <div class="d-flex align-items-center gap-2" style="cursor:pointer" onclick="toggleProfile()"
+                    id="profile-trigger">
+                    <div id="topbar-avatar"
+                        style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#e11d48,#be123c);display:flex;align-items:center;justify-content:center;font-size:.85rem;color:#fff;font-weight:700;overflow:hidden">
+                        <span id="topbar-initials">SA</span>
+                    </div>
+                    <span id="topbar-name" style="font-size:.875rem;font-weight:600">Braveena</span>
+                    <i class="bi bi-caret-down-fill" style="font-size:.65rem;color:var(--clr-muted)"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- Notification Panel -->
+        <div id="notif-panel" class="cms-card"
+            style="display:none;position:fixed;top:64px;right:1.5rem;width:360px;z-index:200;max-height:420px;overflow-y:auto">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="fw-semibold">Notifications</span>
+                <button class="btn-cms btn-outline-cms py-1 px-2" onclick="markAllRead()" style="font-size:.75rem">Mark
+                    all read</button>
+            </div>
+            <div id="notif-list"></div>
+        </div>
+
+        <!-- Profile Dropdown -->
+        <div id="profile-dropdown" class="profile-dropdown">
+            <div class="profile-header-bg">
+                <div class="profile-avatar-large" id="profile-avatar-large" onclick="triggerAvatarUpload()"
+                    title="Change photo">
+                    <span id="profile-initials-large">SA</span>
+                    <div class="avatar-overlay"><i class="bi bi-camera-fill" style="font-size:1.3rem;color:#fff"></i>
+                    </div>
+                </div>
+                <input type="file" id="avatar-file-input" accept="image/*" style="display:none"
+                    onchange="handleAvatarUpload(this)">
+                <div style="color:#fff;font-weight:700;font-size:1.05rem" id="profile-display-name">Braveena Selvam
+                </div>
+                <div style="color:rgba(255,255,255,.8);font-size:.78rem">⭐ Super Administrator</div>
+            </div>
+            <div style="padding:.5rem 0">
+                <div class="profile-info-row"><i class="bi bi-person-badge"></i>
+                    <div>
+                        <div style="font-size:.7rem;color:var(--clr-muted)">Admin ID</div><span
+                            id="profile-id">SA-001</span>
+                    </div>
+                </div>
+                <div class="profile-info-row"><i class="bi bi-envelope"></i>
+                    <div>
+                        <div style="font-size:.7rem;color:var(--clr-muted)">Email</div><span id="profile-email">—</span>
+                    </div>
+                </div>
+                <div class="profile-info-row"><i class="bi bi-telephone"></i>
+                    <div>
+                        <div style="font-size:.7rem;color:var(--clr-muted)">Phone</div><span id="profile-phone">—</span>
+                    </div>
+                </div>
+                <div class="profile-info-row" style="border:none"><i class="bi bi-calendar3"></i>
+                    <div>
+                        <div style="font-size:.7rem;color:var(--clr-muted)">Member Since</div><span
+                            id="profile-joindate">—</span>
+                    </div>
+                </div>
+            </div>
+            <div
+                style="padding:.75rem 1rem;border-top:1px solid var(--clr-border);display:flex;gap:.5rem;flex-wrap:wrap">
+                <button class="btn-cms btn-outline-cms py-1 px-2 flex-1" onclick="openEditProfile()"
+                    style="font-size:.78rem"><i class="bi bi-pencil me-1"></i>Edit Profile</button>
+                <button class="btn-cms btn-outline-cms py-1 px-2" onclick="deleteAvatar()"
+                    style="font-size:.78rem;color:var(--clr-danger)"><i class="bi bi-trash"></i></button>
+                <button class="btn-cms btn-danger-cms py-1 px-2"
+                    onclick="CMS.logout();window.location.href='login.html'"
+                    style="font-size:.78rem;background:#e11d48"><i
+                        class="bi bi-box-arrow-right me-1"></i>Logout</button>
+            </div>
+        </div>
+
+        <!-- Edit Profile Modal -->
+        <div class="modal fade" id="editProfileModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-pencil-square me-2" style="color:#e11d48"></i>Edit
+                            Profile</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="cms-form-group mb-3"><label class="cms-label">Display Name</label><input type="text"
+                                class="cms-input" id="edit-name" /></div>
+                        <div class="cms-form-group mb-3"><label class="cms-label">Username</label><input type="text"
+                                class="cms-input" id="edit-username" /></div>
+                        <div class="cms-form-group mb-3"><label class="cms-label">Phone</label><input type="text"
+                                class="cms-input" id="edit-phone" /></div>
+                        <div class="cms-form-group"><label class="cms-label">New Password <span
+                                    style="color:var(--clr-muted);font-weight:400;text-transform:none">(leave blank to
+                                    keep)</span></label><input type="password" class="cms-input" id="edit-password" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-cms btn-outline-cms" data-bs-dismiss="modal">Cancel</button>
+                        <button class="btn-cms btn-danger-cms" onclick="saveProfile()" style="background:#e11d48"><i
+                                class="bi bi-check-circle me-1"></i>Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <main class="page-content">
+            <div id="alert-banner"></div>
+
+            <!-- Stats Row -->
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-lg-2">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(217,119,6,.15)"><i class="bi bi-clock"
+                                style="color:#fbbf24"></i></div>
+                        <div>
+                            <div class="stat-value" id="cnt-pending">0</div>
+                            <div class="stat-label">Pending</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(37,99,235,.15)"><i class="bi bi-send"
+                                style="color:#60a5fa"></i></div>
+                        <div>
+                            <div class="stat-value" id="cnt-forwarded">0</div>
+                            <div class="stat-label">Forwarded</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(124,58,237,.15)"><i class="bi bi-arrow-repeat"
+                                style="color:#c084fc"></i></div>
+                        <div>
+                            <div class="stat-value" id="cnt-inprogress">0</div>
+                            <div class="stat-label">In Progress</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(220,38,38,.15)"><i
+                                class="bi bi-exclamation-circle" style="color:#f87171"></i></div>
+                        <div>
+                            <div class="stat-value" id="cnt-overdue">0</div>
+                            <div class="stat-label">Overdue</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(22,163,74,.15)"><i class="bi bi-shield-check"
+                                style="color:#4ade80"></i></div>
+                        <div>
+                            <div class="stat-value" id="cnt-resolved">0</div>
+                            <div class="stat-label">Resolved</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(22,163,74,.1)"><i class="bi bi-clipboard-data"
+                                style="color:#86efac"></i></div>
+                        <div>
+                            <div class="stat-value" id="cnt-total">0</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter + Search -->
+            <div class="cms-card mb-3">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-3">
+                        <div class="position-relative">
+                            <i class="bi bi-search position-absolute"
+                                style="left:10px;top:50%;transform:translateY(-50%);color:var(--clr-muted)"></i>
+                            <input id="search-input" type="text" class="cms-input"
+                                placeholder="Search by ID, title or employee…" style="padding-left:2rem"
+                                oninput="renderTable()" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <select id="filter-admin" class="cms-select" onchange="renderTable()">
+                            <option value="ALL">All Admins</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select id="filter-status" class="cms-select" onchange="renderTable()">
+                            <option value="ALL">All Statuses</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="APPROVED">Approved</option>
+                            <option value="REJECTED">Rejected</option>
+                            <option value="FORWARDED">Forwarded</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="OVERDUE">Overdue</option>
+                            <option value="RESOLVED">Resolved</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select id="filter-priority" class="cms-select" onchange="renderTable()">
+                            <option value="ALL">All Priorities</option>
+                            <option value="HIGH">High</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="LOW">Low</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 text-end d-flex gap-2">
+                        <button class="btn-cms btn-outline-cms flex-1" onclick="resetFilters()"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
+                        <button class="btn-cms btn-primary-cms flex-1" onclick="triggerSync()" id="sync-btn" style="white-space:nowrap">
+                            <i class="bi bi-cloud-upload me-1"></i> Sync DB
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Complaints Table -->
+            <div class="cms-card p-0">
+                <div class="cms-card-header px-4 pt-3 pb-0" style="border:none">
+                    <span class="cms-card-title">All Complaints <span
+                            style="font-size:.72rem;color:#e11d48;font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-left:.5rem">Super
+                            Admin View</span></span>
+                    <span id="row-count" class="text-muted-cms" style="font-size:.8rem"></span>
+                </div>
+                <div class="table-responsive">
+                    <table class="cms-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Title</th>
+                                <th>Employee</th>
+                                <th>Company</th>
+                                <th>Assigned Admin</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Due Date</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="complaint-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="empty-state" class="empty-state" style="display:none">
+                    <i class="bi bi-inbox"></i>
+                    <p>No complaints found matching your filters.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Delete Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-trash text-danger me-2"></i>Delete Complaint</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="cms-alert cms-alert-danger mb-0">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span>Permanently delete complaint <strong><span id="del-compId"></span></strong>? This cannot
+                            be undone.</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-cms btn-outline-cms" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn-cms btn-danger-cms" onclick="executeDelete()"><i
+                            class="bi bi-trash me-1"></i>Delete Permanently</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/data-store.js"></script>
+    <script>
+        const session = CMS.requireAuth(['super_admin']);
+        if (!session) window.location.href = 'login.html';
+
+        let cmpToDelete = null;
+
+        // ── Profile ──
+        function initProfile() {
+            const u = CMS.getUserById(session.id) || session;
+            const initials = u.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+            const av = document.getElementById('topbar-avatar');
+            const avL = document.getElementById('profile-avatar-large');
+            if (u.profilePic) {
+                av.innerHTML = `<img src="${u.profilePic}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+                avL.innerHTML = `<img src="${u.profilePic}" style="width:100%;height:100%;object-fit:cover"><div class="avatar-overlay"><i class="bi bi-camera-fill" style="font-size:1.3rem;color:#fff"></i></div>`;
+            } else {
+                document.getElementById('topbar-initials').textContent = initials;
+                avL.innerHTML = `<span>${initials}</span><div class="avatar-overlay"><i class="bi bi-camera-fill" style="font-size:1.3rem;color:#fff"></i></div>`;
+            }
+            document.getElementById('topbar-name').textContent = u.name.split(' ')[0];
+            document.getElementById('profile-display-name').textContent = u.name;
+            document.getElementById('profile-id').textContent = u.id;
+            document.getElementById('profile-email').textContent = u.email;
+            document.getElementById('profile-phone').textContent = u.phone || '—';
+            document.getElementById('profile-joindate').textContent = CMS.fmtDate(u.joinDate);
+        }
+
+        let profileOpen = false;
+        function toggleProfile() {
+            profileOpen = !profileOpen;
+            document.getElementById('profile-dropdown').style.display = profileOpen ? 'block' : 'none';
+        }
+        function triggerAvatarUpload() { document.getElementById('avatar-file-input').click(); }
+        function handleAvatarUpload(input) {
+            if (!input.files[0]) return;
+            const reader = new FileReader();
+            reader.onload = e => { CMS.updateUserProfile(session.id, { profilePic: e.target.result }); initProfile(); showToast('Profile picture updated!', 'success'); };
+            reader.readAsDataURL(input.files[0]);
+        }
+        function deleteAvatar() { CMS.updateUserProfile(session.id, { profilePic: null }); initProfile(); showToast('Profile picture removed.', 'info'); }
+        function openEditProfile() {
+            const u = CMS.getUserById(session.id) || session;
+            document.getElementById('edit-name').value = u.name;
+            document.getElementById('edit-username').value = u.username;
+            document.getElementById('edit-phone').value = u.phone || '';
+            document.getElementById('edit-password').value = '';
+            new bootstrap.Modal(document.getElementById('editProfileModal')).show();
+        }
+        function saveProfile() {
+            const name = document.getElementById('edit-name').value.trim();
+            const username = document.getElementById('edit-username').value.trim();
+            const phone = document.getElementById('edit-phone').value.trim();
+            const password = document.getElementById('edit-password').value;
+            if (!name) return showToast('Name is required', 'error');
+            const patch = { name, username, phone };
+            if (password) patch.password = password;
+            CMS.updateUserProfile(session.id, patch);
+            bootstrap.Modal.getInstance(document.getElementById('editProfileModal')).hide();
+            initProfile();
+            showToast('Profile updated!', 'success');
+        }
+
+        // ── Stats + Table ──
+        function renderStats() {
+            const all = CMS.getComplaints();
+            document.getElementById('cnt-pending').textContent = all.filter(c => c.status === 'PENDING').length;
+            document.getElementById('cnt-forwarded').textContent = all.filter(c => ['FORWARDED', 'VIEWED'].includes(c.status)).length;
+            document.getElementById('cnt-inprogress').textContent = all.filter(c => c.status === 'IN_PROGRESS').length;
+            document.getElementById('cnt-overdue').textContent = all.filter(c => c.status === 'OVERDUE').length;
+            document.getElementById('cnt-resolved').textContent = all.filter(c => c.status === 'RESOLVED').length;
+            document.getElementById('cnt-total').textContent = all.length;
+
+            const pending = CMS.getAdminRequests().filter(r => r.status === 'PENDING').length;
+            const rb = document.getElementById('req-badge');
+            if (pending > 0) { rb.textContent = pending; rb.style.display = 'inline'; }
+            else rb.style.display = 'none';
+        }
+
+        function renderAlerts() {
+            const banner = document.getElementById('alert-banner');
+            const all = CMS.getComplaints();
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            let html = '';
+            all.filter(c => c.status === 'OVERDUE').forEach(c => {
+                html += `<div class="cms-alert cms-alert-danger"><i class="bi bi-exclamation-circle-fill"></i>
+      <div><strong>OVERDUE</strong> — Complaint <strong>${c.id}</strong> ("${c.title}") was due on ${CMS.fmtDate(c.dueDate)}.</div></div>`;
+            });
+            banner.innerHTML = html;
+        }
+
+        function renderTable() {
+            const s = document.getElementById('filter-status').value;
+            const p = document.getElementById('filter-priority').value;
+            const q = document.getElementById('search-input').value.toLowerCase();
+            const aId = document.getElementById('filter-admin')?.value || 'ALL';
+            const adminUsers = CMS.getAuthUsers().filter(u => u.role && u.role.toLowerCase() === 'admin');
+            
+            // Populate Admin filter if empty (first run)
+            const adminSelect = document.getElementById('filter-admin');
+            if (adminSelect && adminSelect.options.length === 1) {
+                adminUsers.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.textContent = u.name;
+                    adminSelect.appendChild(opt);
+                });
+            }
+
+            let all = CMS.getComplaints();
+            if (s !== 'ALL') {
+                if (s === 'FORWARDED') {
+                    all = all.filter(c => ['FORWARDED', 'VIEWED'].includes(c.status));
+                } else {
+                    all = all.filter(c => c.status === s);
+                }
+            }
+            if (p !== 'ALL') all = all.filter(c => c.priority === p);
+            if (aId !== 'ALL') all = all.filter(c => c.assignedAdminId === aId);
+            if (q) all = all.filter(c => (c.id + c.title + c.employeeName + c.companyName).toLowerCase().includes(q));
+
+            const tbody = document.getElementById('complaint-tbody');
+            const empty = document.getElementById('empty-state');
+            document.getElementById('row-count').textContent = `${all.length} complaint${all.length !== 1 ? 's' : ''}`;
+            if (!all.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+            empty.style.display = 'none';
+
+            tbody.innerHTML = all.map(c => {
+                const assignedAdmin = adminUsers.find(u => u.id == c.assignedAdminId);
+                return `
+    <tr>
+      <td><code style="font-size:.8rem;color:var(--clr-primary)">${c.id}</code></td>
+      <td>
+        <div style="font-weight:500;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.title}</div>
+        <div style="font-size:.75rem;color:var(--clr-muted)">${c.category}</div>
+      </td>
+      <td>
+        <div style="font-size:.85rem">${c.complainantName || c.employeeName || '—'}</div>
+        <div style="font-size:.73rem;color:var(--clr-muted)">${c.complainantType || '—'}</div>
+      </td>
+      <td style="font-size:.85rem">${c.companyName}</td>
+      <td><span style="font-size:.78rem;background:rgba(225,29,72,.08);color:#e11d48;padding:2px 8px;border-radius:6px">${assignedAdmin ? (assignedAdmin.fullName || assignedAdmin.name).split(' ')[0] : '—'}</span></td>
+      <td>${CMS.statusBadge(c.status, 'admin')}</td>
+      <td>${CMS.priorityBadge(c.priority)}</td>
+      <td style="font-size:.82rem">${c.dueDate ? CMS.fmtDate(c.dueDate) : '—'}</td>
+      <td class="text-center">
+        <div class="d-flex gap-1 justify-content-center">
+            <a href="admin-complaint-detail.html?id=${c.id}" class="btn-cms btn-outline-cms py-1 px-2" style="font-size:.78rem" title="Review">
+              <i class="bi bi-eye text-primary"></i>
+            </a>
+            <button class="btn-cms btn-outline-cms py-1 px-2" style="font-size:.78rem;border-color:rgba(239,68,68,0.3)" onclick="confirmDelete('${c.id}')" title="Delete">
+              <i class="bi bi-trash text-danger"></i>
+            </button>
+        </div>
+      </td>
+    </tr>`;
+            }).join('');
+        }
+
+        function filterComplaints(status) {
+            document.getElementById('filter-status').value = status === 'FORWARD_ALL' ? 'FORWARDED' : status; 
+            updateNavActive(status);
+            renderTable(); 
+        }
+
+        function updateNavActive(status) {
+            document.querySelectorAll('.nav-link-item').forEach(el => el.classList.remove('active'));
+            const idMap = {
+                'ALL': 'nav-all',
+                'PENDING': 'nav-pending',
+                'FORWARD_ALL': 'nav-forwarded',
+                'FORWARDED': 'nav-forwarded',
+                'IN_PROGRESS': 'nav-inprogress',
+                'OVERDUE': 'nav-overdue',
+                'RESOLVED': 'nav-resolved'
+            };
+            const activeId = idMap[status] || 'nav-all';
+            const el = document.getElementById(activeId);
+            if (el) el.classList.add('active');
+        }
+
+        function handleUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            const filter = params.get('filter');
+            if (filter) {
+                document.getElementById('filter-status').value = filter === 'FORWARD_ALL' ? 'FORWARDED' : filter;
+                updateNavActive(filter);
+            } else {
+                document.getElementById('filter-status').value = 'ALL';
+                updateNavActive('ALL');
+            }
+            renderTable();
+        }
+        function resetFilters() {
+            window.location.href = 'super-admin-dashboard.html';
+        }
+
+        function confirmDelete(id) {
+            cmpToDelete = id;
+            document.getElementById('del-compId').textContent = id;
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        }
+        function executeDelete() {
+            if (!cmpToDelete) return;
+            CMS.deleteComplaint(cmpToDelete);
+            bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+            cmpToDelete = null;
+            renderStats(); renderAlerts(); 
+            handleUrlParams();
+            updateNotifBadge();
+            showToast('Complaint deleted.', 'success');
+        }
+
+        // ── Init ──
+        async function initDashboard() {
+            await CMS.fetchLiveAdmins();
+            await CMS.fetchLiveComplaints();
+            initProfile();
+            renderStats();
+            renderAlerts();
+            handleUrlParams();
+            updateNotifBadge();
+        }
+
+        document.addEventListener('DOMContentLoaded', initDashboard);
+
+        // ── Notifications ──
+        function toggleNotifPanel() {
+            const p = document.getElementById('notif-panel');
+            p.style.display = p.style.display === 'none' ? 'block' : 'none';
+            renderNotifList();
+        }
+        function renderNotifList() {
+            const list = CMS.getNotifications('super_admin').slice(0, 20);
+            const el = document.getElementById('notif-list');
+            if (!list.length) { el.innerHTML = '<div class="text-muted-cms text-center py-3">No notifications</div>'; return; }
+            el.innerHTML = list.map(n => `
+    <div class="d-flex gap-2 mb-2 p-2 rounded" style="background:${n.read ? 'transparent' : 'rgba(225,29,72,.06)'};cursor:pointer" onclick="CMS.markNotifRead(${n.id});renderNotifList();updateNotifBadge()">
+      <i class="bi bi-bell mt-1" style="color:#e11d48;flex-shrink:0"></i>
+      <div>
+        <div style="font-size:.82rem;font-weight:600">${n.title}</div>
+        <div style="font-size:.77rem;color:var(--clr-muted)">${n.body}</div>
+        <div style="font-size:.7rem;color:var(--clr-muted);margin-top:2px">${timeAgo(n.at)}</div>
+      </div>
+    </div>`).join('');
+        }
+        function markAllRead() {
+            CMS.getNotifications('super_admin').forEach(n => CMS.markNotifRead(n.id));
+            renderNotifList(); updateNotifBadge();
+        }
+
+        // ── Chat ──
+        let chatOpen = false;
+
+        function toggleChatDrawer() {
+            chatOpen = !chatOpen;
+            const drawer = document.getElementById('chat-drawer');
+            drawer.classList.toggle('open', chatOpen);
+            if (chatOpen) renderChatSelection();
+        }
+
+        function setChatMode(mode) {
+            chatMode = mode;
+            document.getElementById('mode-btn-admin').className = mode === 'admin' ? 'btn btn-sm btn-danger py-1 px-2' : 'btn btn-sm btn-outline-secondary py-1 px-2';
+            document.getElementById('mode-btn-complaint').className = mode === 'complaint' ? 'btn btn-sm btn-danger py-1 px-2' : 'btn btn-sm btn-outline-secondary py-1 px-2';
+            document.getElementById('mode-btn-admin').style.cssText = mode === 'admin' ? 'font-size:.72rem;background:#e11d48;border-color:#e11d48' : 'font-size:.72rem';
+            document.getElementById('mode-btn-complaint').style.cssText = mode === 'complaint' ? 'font-size:.72rem;background:#e11d48;border-color:#e11d48' : 'font-size:.72rem';
+            
+            // Fix: Switching modes resets any open active conversation
+            activeChatId = null; 
+            activeChatAdminId = null;
+            document.getElementById('chat-active').classList.remove('active');
+            document.getElementById('chat-selection').style.display = 'block';
+            
+            renderChatSelection();
+        }
+
+        function renderChatSelection() {
+            const q = document.getElementById('chat-search').value.toLowerCase();
+            const container = document.getElementById('chat-convo-list');
+
+            if (chatMode === 'admin') {
+                const admins = CMS.getAuthUsers().filter(u => u.role === 'admin');
+                const filtered = q ? admins.filter(a => a.name.toLowerCase().includes(q)) : admins;
+                if (!filtered.length) { container.innerHTML = `<div class="text-center py-4 text-muted-cms">No admins found.</div>`; return; }
+                container.innerHTML = filtered.map(a => {
+                    const thread = CMS.getThreadBetween(session.id, a.id);
+                    const last = thread[thread.length - 1];
+                    const unread = thread.filter(m => m.to === session.id && !m.read).length;
+                    return `
+                    <div class="admin-thread-item d-flex gap-3 align-items-center" onclick="openAdminChat('${a.id}', '${a.name}')">
+                        <div style="width:40px;height:40px;border-radius:10px;background:rgba(225,29,72,.1);display:flex;align-items:center;justify-content:center;color:#e11d48;font-weight:bold;font-size:.8rem">${a.name.split(' ').map(w => w[0]).join('').slice(0, 2)}</div>
+                        <div class="flex-1 overflow-hidden">
+                            <div class="fw-bold" style="font-size:.85rem">${a.name}</div>
+                            <div class="text-muted-cms" style="font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${last ? last.text.substring(0, 40) : 'No messages'}</div>
+                        </div>
+                        ${unread > 0 ? `<span style="background:#e11d48;color:#fff;font-size:.65rem;font-weight:700;border-radius:999px;padding:1px 6px">${unread}</span>` : ''}
+                    </div>`;
+                }).join('');
+            } else {
+                const list = CMS.getComplaints().filter(c => !['PENDING', 'REJECTED'].includes(c.status));
+                const filtered = q ? list.filter(c => (c.id + c.title).toLowerCase().includes(q)) : list;
+                if (!filtered.length) { container.innerHTML = `<div class="text-center py-4 text-muted-cms">No conversations available.</div>`; return; }
+                container.innerHTML = filtered.map(c => {
+                    const msgs = c.messages?.[activeChatChannel] || [];
+                    const last = msgs[msgs.length - 1];
+                    return `
+                    <div class="convo-item d-flex gap-3 align-items-center" onclick="openComplaintChat('${c.id}')">
+                        <div style="width:40px;height:40px;border-radius:10px;background:rgba(225,29,72,.1);display:flex;align-items:center;justify-content:center;color:#e11d48;font-weight:bold;font-size:.8rem">${c.id.slice(-3)}</div>
+                        <div class="flex-1 overflow-hidden">
+                            <div class="fw-bold" style="font-size:.85rem">${c.title}</div>
+                            <div class="text-muted-cms" style="font-size:.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${last ? last.text.substring(0, 40) : 'No messages'}</div>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+        }
+
+        function openAdminChat(adminId, adminName) {
+            activeChatAdminId = adminId;
+            activeChatId = null;
+            CMS.markAdminSAMessagesRead(adminId, session.id);
+            document.getElementById('active-chat-header').textContent = `💬 Thread with ${adminName}`;
+            document.getElementById('chat-channel-toggle').style.cssText = 'display:none!important';
+            document.getElementById('chat-selection').style.display = 'none';
+            document.getElementById('chat-active').classList.add('active');
+            renderAdminChatMessages(adminId);
+        }
+
+        function openComplaintChat(id) {
+            activeChatId = id;
+            activeChatAdminId = null;
+            const c = CMS.getComplaintById(id);
+            document.getElementById('active-chat-header').textContent = `💬 ${c.title}`;
+            document.getElementById('chat-channel-toggle').style.cssText = 'display:flex!important';
+            document.getElementById('chat-selection').style.display = 'none';
+            document.getElementById('chat-active').classList.add('active');
+            renderComplaintChatMessages();
+        }
+
+        function backToSelection() {
+            activeChatId = null; activeChatAdminId = null;
+            document.getElementById('chat-selection').style.display = 'block';
+            document.getElementById('chat-active').classList.remove('active');
+            renderChatSelection();
+        }
+
+        function setChatChannel(ch) {
+            activeChatChannel = ch;
+            document.getElementById('btn-ch-employee').className = ch === 'employee' ? 'btn btn-sm btn-primary py-0 px-2' : 'btn btn-sm btn-outline-secondary py-0 px-2';
+            document.getElementById('btn-ch-company').className = ch === 'company' ? 'btn btn-sm btn-primary py-0 px-2' : 'btn btn-sm btn-outline-secondary py-0 px-2';
+            renderComplaintChatMessages();
+        }
+
+        function renderAdminChatMessages(adminId) {
+            const thread = CMS.getThreadBetween(session.id, adminId);
+            const container = document.getElementById('chat-msg-container');
+            if (!thread.length) {
+                container.innerHTML = `<div class="text-center py-4 text-muted-cms">Start a conversation with this admin.</div>`;
+                return;
+            }
+            container.innerHTML = thread.map(m => {
+                const isSent = m.from === session.id;
+                const tick = isSent ? (m.status === 'read' ? '✓✓' : '✓') : '';
+                const tickClass = isSent ? (m.status === 'read' ? 'double' : 'single') : '';
+                return `
+                <div class="chat-bubble-new ${isSent ? 'sent' : 'received'}">
+                    <div class="chat-bubble-content" style="${!isSent ? 'border-left:3px solid #e11d48' : ''}">${m.text}</div>
+                    <div class="${isSent ? 'msg-meta' : 'msg-meta received-meta'}">
+                        <span>${timeAgo(m.at)}</span>
+                        ${isSent ? `<span class="msg-tick ${tickClass}">${tick}</span>` : ''}
+                    </div>
+                    ${isSent ? `<div style="font-size:.65rem;color:rgba(255,255,255,.7);margin-top:1px;text-align:right">Super Admin</div>` : ''}
+                </div>`;
+            }).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function renderComplaintChatMessages() {
+            const c = CMS.getComplaintById(activeChatId);
+            const container = document.getElementById('chat-msg-container');
+            const msgs = c?.messages?.[activeChatChannel] || [];
+            if (!msgs.length) {
+                container.innerHTML = `<div class="text-center py-4 text-muted-cms">No messages yet.</div>`;
+                return;
+            }
+            container.innerHTML = msgs.map(m => {
+                if (m.isStatusUpdate || m.sender === 'system') {
+                    return `<div style="text-align:center;margin:4px 0"><span style="background:rgba(225,29,72,.1);color:#e11d48;font-size:.73rem;padding:.3rem .75rem;border-radius:999px;display:inline-block">${m.text}</span></div>`;
+                }
+                const isSent = m.sender === 'admin';
+                const tick = isSent ? (m.status === 'read' ? '✓✓' : '✓') : '';
+                const tickClass = isSent ? (m.status === 'read' ? 'double' : 'single') : '';
+                return `
+                <div class="chat-bubble-new ${isSent ? 'sent' : 'received'}">
+                    ${!isSent ? `<div style="font-size:.68rem;color:var(--clr-muted);margin-bottom:2px">${m.senderName || m.sender}</div>` : ''}
+                    <div class="chat-bubble-content">${m.text}</div>
+                    ${m.isSuperAdmin ? `<div style="font-size:.65rem;color:#e11d48;font-weight:700;margin-top:2px;text-align:right">Super Admin</div>` : ''}
+                    <div class="${isSent ? 'msg-meta' : 'msg-meta received-meta'}">
+                        <span>${timeAgo(m.at)}</span>
+                        ${isSent ? `<span class="msg-tick ${tickClass}">${tick}</span>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendChatMsg() {
+            const input = document.getElementById('chat-input');
+            const val = input.value.trim();
+            if (!val) return;
+            if (activeChatAdminId) {
+                CMS.sendAdminSAMessage(session.id, activeChatAdminId, val);
+                renderAdminChatMessages(activeChatAdminId);
+            } else if (activeChatId) {
+                CMS.sendMessage(activeChatId, activeChatChannel, 'admin', val, 'Braveena (Super Admin)', true);
+                renderComplaintChatMessages();
+            }
+            input.value = '';
+        }
+
+        function handleChatKey(e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMsg(); }
+        }
+
+        document.addEventListener('click', e => {
+            const panel = document.getElementById('notif-panel');
+            const profileDrop = document.getElementById('profile-dropdown');
+            const drawer = document.getElementById('chat-drawer');
+            const fab = document.querySelector('.chat-fab');
+            if (panel && panel.style.display !== 'none' && !panel.contains(e.target) && !e.target.closest('[onclick="toggleNotifPanel()"]')) panel.style.display = 'none';
+            if (profileOpen && profileDrop && !profileDrop.contains(e.target) && !document.getElementById('profile-trigger').contains(e.target) && !e.target.closest('.modal')) { profileOpen = false; profileDrop.style.display = 'none'; }
+            if (chatOpen && drawer && !drawer.contains(e.target) && fab && !fab.contains(e.target)) toggleChatDrawer();
+        });
+
+        // Force data repair
+        async function repairData() {
+            const btn = document.querySelector('[onclick="repairData()"]');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Repairing...';
+            btn.disabled = true;
+
+            try {
+                const resp = await fetch('http://localhost:8080/api/admin/repair-data', { method: 'POST' });
+                if (resp.ok) {
+                    const res = await resp.json();
+                    alert(`Repair complete! Fixes applied: ${res.fixesApplied}`);
+                    await initDashboard(); // Reload data
+                } else {
+                    alert('Repair failed. Server error.');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Repair failed. Is the backend running?');
+            } finally {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        }
+
+        // Initialize
+        async function initDashboard() {
+            session = CMS.requireAuth(['super_admin']);
+            if (!session) return;
+
+            // Load header info
+            const nameEl = document.getElementById('admin-name');
+            if (nameEl) nameEl.textContent = session.name || 'Super Admin';
+            
+            const avatarEl = document.getElementById('admin-avatar');
+            if (avatarEl && session.profilePic) avatarEl.src = session.profilePic;
+
+            await CMS.fetchLiveAdmins(); // Added back
+            await CMS.fetchLiveComplaints();
+            handleUrlParams();
+            renderStats();
+            renderAdminCards();
+        }
+        initDashboard();
+    </script>
+</body>
+
+</html>

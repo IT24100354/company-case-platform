@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Registration – CMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="assets/styles.css" />
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--clr-bg);
+            background-image: radial-gradient(var(--clr-border) 1px, transparent 1px);
+            background-size: 32px 32px;
+            padding: 2rem 0;
+        }
+
+        .auth-card {
+            max-width: 540px;
+            /* slightly wider for registration grid */
+            width: 100%;
+            padding: 2.5rem 2.5rem;
+            border-radius: 16px;
+            background: var(--clr-surface);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--clr-border);
+            margin: auto;
+        }
+
+        .step-container {
+            display: none;
+        }
+
+        .step-container.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .role-selector {
+            border: 1px solid var(--clr-border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            height: 100%;
+        }
+
+        .role-selector:hover {
+            border-color: var(--clr-primary);
+            background: rgba(37, 99, 235, 0.03);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .role-selector.selected {
+            border-color: var(--clr-primary);
+            background: rgba(37, 99, 235, 0.06);
+            box-shadow: 0 0 0 2px var(--clr-primary);
+        }
+
+        .role-selector i {
+            font-size: 2rem;
+            color: var(--clr-primary);
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .otp-input {
+            width: 48px;
+            height: 56px;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            border-radius: 8px;
+            border: 1px solid var(--clr-border);
+            background: var(--clr-surface2);
+            color: var(--clr-text);
+        }
+
+        .otp-input:focus {
+            border-color: var(--clr-primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+            outline: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="auth-card">
+        <div class="text-center mb-4" id="header-block">
+            <h1 class="fw-bold mb-1" style="font-size:1.5rem; color:var(--clr-text)" id="flow-title">Create an Account
+            </h1>
+            <p class="text-muted-cms" style="font-size:.85rem" id="flow-desc">Join the Complaint Management Platform</p>
+        </div>
+
+        <!-- Step 1: Choose Registration Type -->
+        <div id="step-1" class="step-container active">
+            <label class="cms-label text-center d-block mb-3">Select your role</label>
+            <div class="row g-3 mb-4">
+                <div class="col-4">
+                    <div class="role-selector" onclick="selectRole('employee', this)">
+                        <i class="bi bi-person"></i>
+                        <div class="fw-600" style="font-size:.85rem">Employee</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="role-selector" onclick="selectRole('company', this)">
+                        <i class="bi bi-building"></i>
+                        <div class="fw-600" style="font-size:.85rem">Company</div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="role-selector" onclick="selectRole('admin', this)">
+                        <i class="bi bi-person-badge"></i>
+                        <div class="fw-600" style="font-size:.85rem">Admin</div>
+                    </div>
+                </div>
+            </div>
+            <div id="role-error" class="invalid-feedback-msg text-center mb-3">Please select a role to continue.</div>
+
+            <button onclick="handleRoleSubmit()"
+                class="btn-cms btn-primary-cms w-100 py-2 d-flex justify-content-center align-items-center gap-2 mb-4"
+                style="font-size:1rem">
+                Continue <i class="bi bi-arrow-right"></i>
+            </button>
+        </div>
+
+        <!-- Step 2: Display Registration Form -->
+        <div id="step-2" class="step-container">
+            <form onsubmit="handleFormSubmit(event)">
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="cms-label" for="fname">First Name</label>
+                        <input type="text" id="fname" class="cms-input" placeholder="John" required />
+                    </div>
+                    <div class="col-6">
+                        <label class="cms-label" for="lname">Last Name</label>
+                        <input type="text" id="lname" class="cms-input" placeholder="Doe" required />
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12" id="nic-field-container">
+                        <label class="cms-label" for="nic">National ID Card (NIC) / Company Reg No</label>
+                        <input type="text" id="nic" class="cms-input" placeholder="Enter identification" required />
+                    </div>
+                </div>
+
+                <div class="cms-form-group mb-3">
+                    <label class="cms-label" for="email">Email Address</label>
+                    <input type="email" id="email" class="cms-input" placeholder="email@company.com" required />
+                    <div id="email-error" class="invalid-feedback-msg mt-1">Invalid company internal email address. Only
+                        internal email addresses are allowed for this role.</div>
+                </div>
+
+                <div class="cms-form-group mb-3">
+                    <label class="cms-label" for="username">Username</label>
+                    <input type="text" id="username" class="cms-input" placeholder="Choose a username" required />
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-6">
+                        <label class="cms-label" for="new-password">Password</label>
+                        <input type="password" id="new-password" class="cms-input" placeholder="Create password"
+                            required />
+                    </div>
+                    <div class="col-6">
+                        <label class="cms-label" for="confirm-password">Confirm</label>
+                        <input type="password" id="confirm-password" class="cms-input" placeholder="Confirm password"
+                            required />
+                    </div>
+                    <div class="col-12">
+                        <div id="pwd-error" class="invalid-feedback-msg">Passwords do not match.</div>
+                    </div>
+                </div>
+
+                <button type="submit"
+                    class="btn-cms btn-primary-cms w-100 py-2 d-flex justify-content-center align-items-center gap-2 mb-2"
+                    style="font-size:1rem">
+                    Next: Verify Email <i class="bi bi-arrow-right"></i>
+                </button>
+            </form>
+        </div>
+
+        <!-- Step 4/5: Verify Email -->
+        <div id="step-3" class="step-container">
+            <div class="cms-alert cms-alert-info mb-4" style="font-size:.8rem">
+                <i class="bi bi-info-circle-fill"></i>
+                <div>An email with a 6-digit code has been sent to <strong id="verify-email-display"></strong>. Please
+                    enter this code to complete your registration.</div>
+            </div>
+            <form onsubmit="handleOtpSubmit(event)">
+                <div class="cms-form-group mb-4">
+                    <label class="cms-label text-center d-block mb-3">Enter Verification Code</label>
+                    <div class="d-flex justify-content-center gap-2 px-1">
+                        <input type="text" class="otp-input" maxlength="1" onkeyup="handleOtpKey(this, 1, event)"
+                            id="otp-1" required autocomplete="off">
+                        <input type="text" class="otp-input" maxlength="1" onkeyup="handleOtpKey(this, 2, event)"
+                            id="otp-2" required autocomplete="off">
+                        <input type="text" class="otp-input" maxlength="1" onkeyup="handleOtpKey(this, 3, event)"
+                            id="otp-3" required autocomplete="off">
+                        <input type="text" class="otp-input" maxlength="1" onkeyup="handleOtpKey(this, 4, event)"
+                            id="otp-4" required autocomplete="off">
+                        <input type="text" class="otp-input" maxlength="1" onkeyup="handleOtpKey(this, 5, event)"
+                            id="otp-5" required autocomplete="off">
+                        <input type="text" class="otp-input" maxlength="1" onkeyup="handleOtpKey(this, 6, event)"
+                            id="otp-6" required autocomplete="off">
+                    </div>
+                    <div id="otp-error" class="invalid-feedback-msg text-center mt-3">Invalid verification code. Please
+                        try again.</div>
+                    <div class="text-center mt-2" style="font-size:.78rem;color:var(--clr-muted)">Test Code: <span
+                            class="fw-bold text-primary">783401</span></div>
+                </div>
+                <button type="submit"
+                    class="btn-cms btn-primary-cms w-100 py-2 d-flex justify-content-center align-items-center gap-2 mb-4"
+                    style="font-size:1rem">
+                    Verify Code & Complete Integration
+                </button>
+            </form>
+        </div>
+
+        <!-- Step 6: Success / Pending Approval (For Admins) -->
+        <div id="step-4" class="step-container text-center">
+            <div
+                style="width:80px;height:80px;border-radius:50%;background:rgba(217,119,6,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;font-size:2.5rem;color:var(--clr-warning)">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <h2 class="fw-bold mb-2" style="font-size:1.3rem; color:var(--clr-text)">Pending Approval</h2>
+            <div class="cms-alert cms-alert-warning text-start mx-auto mb-4"
+                style="max-width:380px;font-size:.85rem;line-height:1.5">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <div style="color:#1e293b">Your registration is being reviewed by the Super Admin. You will receive an
+                    email once your account becomes Active.</div>
+            </div>
+            <a href="login.html"
+                class="btn-cms btn-outline-cms w-100 py-2 d-flex justify-content-center align-items-center gap-2"
+                style="font-size:1rem">
+                Return to Login
+            </a>
+        </div>
+
+        <div class="text-center"
+            style="font-size:.85rem; border-top: 1px solid var(--clr-border); padding-top:1.5rem; margin-top:0.5rem"
+            id="back-nav">
+            Already have an account? <a href="login.html" class="text-decoration-none fw-semibold"
+                style="color:var(--clr-primary)">Log in</a>
+        </div>
+    </div>
+
+    <!-- Toast container -->
+    <div id="toast-container"></div>
+    <script>
+        let selectedRole = '';
+
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toast-container');
+            const icons = { success: 'bi-check-circle-fill', error: 'bi-x-circle-fill', info: 'bi-info-circle-fill' };
+            const colors = { success: '#16a34a', error: '#dc2626', info: '#2563eb' };
+            const el = document.createElement('div');
+            el.className = `toast-item toast-${type}`;
+            el.innerHTML = `<i class="bi ${icons[type]}" style="color:${colors[type]};flex-shrink:0"></i><span>${message}</span>`;
+            container.appendChild(el);
+            setTimeout(() => { el.style.animation = 'fadeOut 0.3s ease forwards'; setTimeout(() => el.remove(), 300); }, duration);
+        }
+
+        function switchStep(from, to, newTitle, newDesc) {
+            document.getElementById(`step-${from}`).classList.remove('active');
+            document.getElementById(`step-${to}`).classList.add('active');
+            if (newTitle) document.getElementById('flow-title').textContent = newTitle;
+            if (newDesc !== undefined) document.getElementById('flow-desc').textContent = newDesc;
+        }
+
+        // STEP 1 HANDLER
+        function selectRole(role, el) {
+            selectedRole = role;
+            document.querySelectorAll('.role-selector').forEach(i => i.classList.remove('selected'));
+            el.classList.add('selected');
+            document.getElementById('role-error').classList.remove('show');
+        }
+
+        function handleRoleSubmit() {
+            if (!selectedRole) {
+                document.getElementById('role-error').classList.add('show');
+                return;
+            }
+            switchStep(1, 2, 'Personal Details', `Complete your ${selectedRole} profile details`);
+        }
+
+        // STEP 2 & 3: FORM AND VALIDATION (Admin internal email check logic etc.)
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const p1 = document.getElementById('new-password').value;
+            const p2 = document.getElementById('confirm-password').value;
+            const email = document.getElementById('email').value;
+
+            let hasError = false;
+
+            // Password check
+            if (p1 !== p2) {
+                document.getElementById('pwd-error').classList.add('show');
+                document.getElementById('new-password').classList.add('is-invalid');
+                document.getElementById('confirm-password').classList.add('is-invalid');
+                hasError = true;
+            } else {
+                document.getElementById('pwd-error').classList.remove('show');
+                document.getElementById('new-password').classList.remove('is-invalid');
+                document.getElementById('confirm-password').classList.remove('is-invalid');
+            }
+
+            // Internal Email validation mapping mock for Admins
+            if (selectedRole === 'admin' && email === 'invalid@external.com') {
+                document.getElementById('email-error').classList.add('show');
+                document.getElementById('email').classList.add('is-invalid');
+                hasError = true;
+            } else {
+                document.getElementById('email-error').classList.remove('show');
+                document.getElementById('email').classList.remove('is-invalid');
+            }
+
+            if (hasError) return;
+
+            // Advance to email verification
+            document.getElementById('verify-email-display').textContent = email;
+            switchStep(2, 3, 'Verify Email Address', 'Almost there!');
+            setTimeout(() => document.getElementById('otp-1').focus(), 50);
+
+            showToast(`Simulated Email: OTP Code is 783401 sent to ${email}`, 'info', 6000);
+        }
+
+        // STEP 4/5: VERIFY OTP
+        function handleOtpKey(input, index, e) {
+            if (e.key >= 0 && e.key <= 9) {
+                if (input.value.length === 1 && index < 6) document.getElementById(`otp-${index + 1}`).focus();
+            } else if (e.key === 'Backspace') {
+                if (input.value.length === 0 && index > 1) document.getElementById(`otp-${index - 1}`).focus();
+            }
+        }
+
+        function handleOtpSubmit(e) {
+            e.preventDefault();
+            let code = '';
+            for (let i = 1; i <= 6; i++) code += document.getElementById(`otp-${i}`).value;
+            const err = document.getElementById('otp-error');
+
+            // Checking generated code from Prompt constraint
+            if (code !== '783401') {
+                err.classList.add('show');
+                for (let i = 1; i <= 6; i++) document.getElementById(`otp-${i}`).classList.add('is-invalid');
+                return;
+            }
+
+            err.classList.remove('show');
+            for (let i = 1; i <= 6; i++) document.getElementById(`otp-${i}`).classList.remove('is-invalid');
+
+            // Route to success logic (Admin goes to pending, employee/company goes to Active usually, but we will route universally to pending logic here or based on role)
+
+            if (selectedRole === 'admin') {
+                switchStep(3, 4, '', '');
+                document.getElementById('header-block').style.display = 'none';
+                document.getElementById('back-nav').style.display = 'none';
+            } else {
+                // For simplicity, showing success and auto router
+                switchStep(3, 4, '', '');
+                document.getElementById('header-block').style.display = 'none';
+                document.getElementById('back-nav').style.display = 'none';
+                // Adjust content for active
+                const step4 = document.getElementById('step-4');
+                step4.innerHTML = `
+                <div style="width:80px;height:80px;border-radius:50%;background:rgba(22,163,74,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;font-size:2.5rem;color:var(--clr-success)">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+                <h2 class="fw-bold mb-2" style="font-size:1.3rem; color:var(--clr-text)">Registration Successful</h2>
+                <div class="cms-alert cms-alert-success text-center mx-auto mb-4" style="max-width:380px;font-size:.85rem;line-height:1.5">
+                    Your account has been actively provisioned. You can now login.
+                </div>
+                <a href="login.html" class="btn-cms btn-primary-cms w-100 py-2 d-flex justify-content-center align-items-center gap-2" style="font-size:1rem">
+                    Return to Login
+                </a>
+                `;
+            }
+        }
+    </script>
+</body>
+
+</html>

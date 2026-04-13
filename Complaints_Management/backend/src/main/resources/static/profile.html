@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - CMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="assets/styles.css" />
+    <style>
+        .profile-card {
+            background: #fff;
+            border-radius: 20px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            max-width: 600px;
+            margin: 40px auto;
+            overflow: hidden;
+        }
+
+        .profile-header {
+            background: linear-gradient(135deg, var(--clr-primary), #1d4ed8);
+            height: 120px;
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-label { font-weight: 700; font-size: 0.85rem; color: #475569; margin-bottom: 8px; display: block; }
+        .form-control { border-radius: 12px; padding: 12px 16px; border: 1px solid #e2e8f0; }
+
+        .btn-update {
+            background: var(--clr-primary);
+            color: #fff;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-weight: 700;
+            width: 100%;
+            transition: 0.2s;
+        }
+
+        .btn-update:hover { background: #1d4ed8; transform: translateY(-2px); }
+
+        .profile-img-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: -60px auto 20px;
+            border-radius: 30px;
+            background: #fff;
+            padding: 5px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            cursor: pointer;
+        }
+
+        .profile-img {
+            width: 100%;
+            height: 100%;
+            border-radius: 25px;
+            object-fit: cover;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--clr-primary);
+        }
+
+        .profile-img-overlay {
+            position: absolute;
+            inset: 5px;
+            background: rgba(0,0,0,0.4);
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            opacity: 0;
+            transition: 0.2s;
+        }
+
+        .profile-img-container:hover .profile-img-overlay { opacity: 1; }
+    </style>
+</head>
+<body class="bg-light">
+
+    <nav class="sidebar">
+        <div class="sidebar-brand" id="role-brand">User Portal</div>
+        <div class="sidebar-nav">
+            <a class="nav-link-item" id="nav-dash" href="#"><i class="bi bi-grid"></i> Dashboard</a>
+            <a class="nav-link-item active" href="profile.html"><i class="bi bi-person-circle"></i> Profile</a>
+            <a class="nav-link-item" href="login.html" onclick="CMS.logout()" style="color:var(--clr-danger)"><i class="bi bi-box-arrow-right"></i> Logout</a>
+        </div>
+    </nav>
+
+    <div class="main-wrapper" style="margin-left: 260px; padding: 2rem;">
+        <div class="profile-card">
+            <div class="profile-header"></div>
+            <div class="p-5" style="padding-top: 0 !important;">
+                
+                <div class="profile-img-container" onclick="document.getElementById('file-input').click()">
+                    <div id="profile-preview" class="profile-img">U</div>
+                    <div class="profile-img-overlay">
+                        <i class="bi bi-camera-fill fs-4"></i>
+                    </div>
+                </div>
+                <input type="file" id="file-input" hidden accept=".jpg,.jpeg,.png" onchange="previewImage(this)">
+
+                <h4 class="text-center fw-bold mb-1" id="profile-display-name">Loading...</h4>
+                <p class="text-center mb-4 opacity-75 small" id="profile-role-display">User Role</p>
+
+                <div id="alert-box" style="display: none;"></div>
+
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" id="full-name" class="form-control" placeholder="Enter full name">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" id="username" class="form-control" readonly style="background:#f8fafc; color:#64748b">
+                    <small class="text-muted">Username cannot be changed.</small>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="form-group">
+                    <label class="form-label">New Password</label>
+                    <input type="password" id="new-password" class="form-control" placeholder="Leave blank to keep current">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Confirm New Password</label>
+                    <input type="password" id="confirm-password" class="form-control" placeholder="Confirm new password">
+                </div>
+
+                <button class="btn-update" onclick="submitProfile()">Update Account Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/data-store.js"></script>
+    <script>
+        const session = CMS.requireAuth(['customer', 'employee', 'admin', 'company_admin', 'dept_user']);
+        let selectedFile = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!session) return;
+
+            // Role-based UI
+            const role = session.role.toUpperCase();
+            document.getElementById('role-brand').textContent = role.replace('_', ' ') + ' Portal';
+            document.getElementById('profile-role-display').textContent = role.replace('_', ' ');
+            
+            const dashLink = document.getElementById('nav-dash');
+            if (role === 'CUSTOMER') dashLink.href = 'customer-dashboard.html';
+            else if (role === 'EMPLOYEE') dashLink.href = 'employee-dashboard.html';
+            else if (role === 'ADMIN') dashLink.href = 'admin-dashboard.html';
+            else if (role === 'COMPANY_ADMIN') dashLink.href = 'company-admin-dashboard.html';
+            else if (role === 'DEPT_USER') dashLink.href = 'department-dashboard.html';
+            
+            // Populate data
+            document.getElementById('full-name').value = session.fullName || '';
+            document.getElementById('username').value = session.username || '';
+            document.getElementById('profile-display-name').textContent = session.fullName || 'User';
+            updateAvatar(session);
+        });
+
+        function updateAvatar(u) {
+            const preview = document.getElementById('profile-preview');
+            const name = u.fullName || 'U';
+            
+            if (u.profileImageUrl) {
+                preview.innerHTML = `<img src="${u.profileImageUrl}" style="width:100%; height:100%; border-radius:25px; object-fit:cover;">`;
+            } else {
+                preview.textContent = name[0].toUpperCase();
+            }
+        }
+
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const ext = file.name.split('.').pop().toLowerCase();
+                if (!['jpg','jpeg','png'].includes(ext)) {
+                    showAlert('Please select a valid image (JPG, PNG).', 'danger');
+                    input.value = '';
+                    return;
+                }
+                selectedFile = file;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('profile-preview').innerHTML = `<img src="${e.target.result}" style="width:100%; height:100%; border-radius:25px; object-fit:cover;">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function submitProfile() {
+            const fullName = document.getElementById('full-name').value;
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+
+            if (newPassword && newPassword !== confirmPassword) {
+                showAlert('Passwords do not match.', 'danger');
+                return;
+            }
+
+            try {
+                if (selectedFile) {
+                    const formData = new FormData();
+                    formData.append('id', session.id);
+                    formData.append('file', selectedFile);
+
+                    const imgResp = await fetch('/api/auth/profile/image', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    if (imgResp.ok) {
+                        const imgData = await imgResp.json();
+                        session.profileImageUrl = imgData.url;
+                    }
+                }
+
+                const resp = await fetch('/api/auth/profile/update', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        id: session.id,
+                        fullName: fullName,
+                        password: newPassword || null
+                    })
+                });
+
+                if (resp.ok) {
+                    const data = await resp.json();
+                    session.fullName = data.fullName;
+                    if (data.profileImageUrl) session.profileImageUrl = data.profileImageUrl;
+                    sessionStorage.setItem('cms_session', JSON.stringify(session));
+                    
+                    document.getElementById('profile-display-name').textContent = session.fullName;
+                    updateAvatar(session);
+                    showAlert('Profile updated successfully!', 'success');
+                    
+                    document.getElementById('new-password').value = '';
+                    document.getElementById('confirm-password').value = '';
+                    selectedFile = null;
+                } else {
+                    showAlert('Failed to update profile.', 'danger');
+                }
+            } catch (err) {
+                console.error("Update error:", err);
+                showAlert('An error occurred.', 'danger');
+            }
+        }
+
+        function showAlert(msg, type) {
+            const alertBox = document.getElementById('alert-box');
+            alertBox.className = `alert alert-${type} mb-4`;
+            alertBox.textContent = msg;
+            alertBox.style.display = 'block';
+            setTimeout(() => { alertBox.style.display = 'none'; }, 3000);
+        }
+    </script>
+</body>
+</html>

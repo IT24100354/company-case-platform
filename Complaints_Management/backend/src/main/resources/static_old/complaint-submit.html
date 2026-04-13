@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Submit Complaint</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body style="background:#f4f6f9; padding:40px; font-family:Arial">
+
+<div style="max-width:500px; margin:auto; background:white; padding:25px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.1)">
+
+  <h2 style="margin-bottom:20px;">Submit Complaint</h2>
+
+  <form id="complaintForm">
+
+    <div style="margin-bottom:15px;">
+      <label>Title</label>
+      <input type="text" id="title" class="input" required />
+    </div>
+
+    <div style="margin-bottom:15px;">
+      <label>Description</label>
+      <textarea id="description" class="input" rows="4" required></textarea>
+    </div>
+
+    <button type="submit" class="btn">Submit</button>
+
+    <div id="msg" style="margin-top:15px;"></div>
+
+  </form>
+
+</div>
+
+<script>
+  document.getElementById("complaintForm").addEventListener("submit", async function(e){
+      e.preventDefault();
+
+      const title = document.getElementById("title").value;
+      const description = document.getElementById("description").value;
+
+      const res = await fetch("/api/public/complaints", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, description })
+      });
+
+      if(res.ok){
+          document.getElementById("msg").innerHTML = "Complaint submitted successfully!";
+          this.reset();
+      } else {
+          document.getElementById("msg").innerHTML = "Error submitting complaint.";
+      }
+  });
+</script>
+
+</body>
+</html>

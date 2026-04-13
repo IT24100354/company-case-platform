@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body class="dash">
+
+<aside class="sidebar" id="sidebar">
+  <div class="brand">Complaint Platform</div>
+
+  <nav class="nav">
+    <a class="nav-item active" href="/admin/dashboard">Dashboard</a>
+    <a class="nav-item" href="/admin/complaints">Complaints</a>
+    <a class="nav-item" href="#">Customers</a>
+    <a class="nav-item" href="#">Companies</a>
+    <a class="nav-item" href="/logout">Logout</a>
+  </nav>
+</aside>
+
+<div class="content">
+  <header class="topbar">
+    <button class="icon-btn" id="toggleSidebar" aria-label="Toggle sidebar">☰</button>
+
+    <div class="topbar-right">
+      <div class="pill">
+        Logged in as:
+        <b id="loggedUsername">username</b>
+        <span class="dot"></span>
+        <span id="loggedRole">ROLE_ADMIN</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="title-row">
+      <h1>Admin Dashboard</h1>
+      <div class="muted" id="todayText"></div>
+    </div>
+
+    <section class="cards">
+      <div class="card">
+        <div class="card-label">Total Complaints</div>
+        <div class="card-value" id="totalCount">0</div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Pending</div>
+        <div class="card-value" id="pendingCount">0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Forwarded</div>
+        <div class="card-value" id="forwardedCount">0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Resolved</div>
+        <div class="card-value" id="resolvedCount">0</div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Recent Complaints</h2>
+        <input class="input small" placeholder="Search..." />
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+          <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+          </thead>
+
+          <!-- ✅ real data will be inserted here by JS -->
+          <tbody id="recentComplaintsBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

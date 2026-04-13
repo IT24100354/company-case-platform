@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login</title>
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body class="auth-page">
+
+<!-- background -->
+<div class="bg"></div>
+<div class="overlay"></div>
+
+<main class="auth-wrap">
+  <section class="auth-card">
+    <h1 class="title">Login</h1>
+
+    <!-- ✅ MUST match SecurityConfig loginProcessingUrl -->
+    <form class="form" action="/perform_login" method="POST" autocomplete="off">
+      <div class="field">
+        <input type="text" name="username" placeholder="Username" autocomplete="username" required />
+        <span class="icon">👤</span>
+      </div>
+
+      <div class="field">
+        <input type="password" name="password" placeholder="Password" autocomplete="current-password" required />
+        <span class="icon">🔒</span>
+      </div>
+
+      <div class="row">
+        <label class="check">
+          <input type="checkbox" name="remember-me" />
+          <span>Remember me</span>
+        </label>
+
+        <a>Forgot Password?</a>
+      </div>
+
+      <button class="btn" type="submit">Login</button>
+
+      <p class="bottom">
+        Don’t have an account?
+        <a>Register</a>
+      </p>
+
+      <div id="msg" class="msg" style="display:none;"></div>
+    </form>
+  </section>
+</main>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

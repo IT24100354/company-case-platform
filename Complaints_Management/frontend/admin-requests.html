@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Requests – CMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="assets/styles.css" />
+    <style>
+        .email-preview-card {
+            border: 1.5px solid rgba(22, 163, 74, .3);
+            background: rgba(22, 163, 74, .03);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .email-preview-card.show {
+            display: block;
+            animation: fadeIn .4s;
+        }
+
+        .email-body-preview {
+            background: #fff;
+            border: 1px solid var(--clr-border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            font-size: .875rem;
+            line-height: 1.7;
+        }
+
+        .req-filter-tab {
+            padding: .4rem 1rem;
+            border-radius: 999px;
+            font-size: .8rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--clr-border);
+            background: var(--clr-surface);
+            color: var(--clr-muted);
+            transition: all .2s;
+        }
+
+        .req-filter-tab.active {
+            background: var(--clr-primary);
+            color: #fff;
+            border-color: var(--clr-primary);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon" style="background:linear-gradient(135deg,#e11d48,#be123c)"><i
+                    class="bi bi-shield-lock"></i></div>
+            Super Admin
+        </div>
+        <div class="sidebar-nav">
+            <div class="nav-section-label">Overview</div>
+            <a class="nav-link-item" href="super-admin-dashboard.html"><i class="bi bi-grid"></i> Dashboard</a>
+            <div class="nav-section-label">Administration</div>
+            <a class="nav-link-item active" href="admin-requests.html"><i class="bi bi-people"></i> Admin Requests</a>
+            <a class="nav-link-item" href="responsibility-assign.html"><i class="bi bi-diagram-3"></i> Assign
+                Responsibility</a>
+            <div class="nav-section-label">Account</div>
+            <a class="nav-link-item" href="login.html" onclick="CMS.logout()" style="color:var(--clr-danger)">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </a>
+        </div>
+    </nav>
+
+    <div class="main-wrapper">
+        <header class="topbar">
+            <div class="d-flex align-items-center gap-2">
+                <a href="super-admin-dashboard.html" class="btn-cms btn-outline-cms py-1 px-2"
+                    style="font-size:.8rem"><i class="bi bi-arrow-left"></i></a>
+                <span class="topbar-title">Admin Requests</span>
+            </div>
+            <div class="topbar-right">
+                <div class="position-relative" style="cursor:pointer" onclick="toggleNotifPanel()">
+                    <i class="bi bi-bell" style="font-size:1.2rem"></i>
+                    <span class="notif-badge notif-count" id="notif-badge" style="display:none">0</span>
+                </div>
+                <div class="d-flex align-items-center gap-2" style="cursor:pointer" onclick="toggleProfile()"
+                    id="profile-trigger">
+                    <div id="topbar-avatar"
+                        style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#e11d48,#be123c);display:flex;align-items:center;justify-content:center;font-size:.85rem;color:#fff;font-weight:700"
+                        title="Super Admin Profile">SA</div>
+                    <span id="topbar-name" style="font-size:.875rem;font-weight:600">Braveena</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Notification Panel -->
+        <div id="notif-panel" class="cms-card"
+            style="display:none;position:fixed;top:64px;right:1.5rem;width:360px;z-index:200;max-height:420px;overflow-y:auto">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="fw-semibold">Notifications</span>
+                <button class="btn-cms btn-outline-cms py-1 px-2" onclick="markAllRead()" style="font-size:.75rem">Mark
+                    all read</button>
+            </div>
+            <div id="notif-list"></div>
+        </div>
+
+        <main class="page-content">
+            <!-- Page Header -->
+            <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+                <div>
+                    <h2 style="font-size:1.25rem;font-weight:700;margin:0">Pending Admin Requests</h2>
+                    <p class="text-muted-cms" style="font-size:.85rem;margin:0">Review and approve or reject admin
+                        registration requests</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="req-filter-tab active" onclick="setFilter('ALL',this)" id="tab-all">All</button>
+                    <button class="req-filter-tab" onclick="setFilter('PENDING',this)" id="tab-pending">Pending</button>
+                    <button class="req-filter-tab" onclick="setFilter('APPROVED',this)"
+                        id="tab-approved">Approved</button>
+                    <button class="req-filter-tab" onclick="setFilter('REJECTED',this)"
+                        id="tab-rejected">Rejected</button>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(217,119,6,.15)"><i class="bi bi-clock"
+                                style="color:#fbbf24"></i></div>
+                        <div>
+                            <div class="stat-value" id="cnt-pending">0</div>
+                            <div class="stat-label">Pending</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(22,163,74,.15)"><i class="bi bi-check-circle"
+                                style="color:#4ade80"></i></div>
+                        <div>
+                            <div class="stat-value" id="cnt-approved">0</div>
+                            <div class="stat-label">Approved</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(220,38,38,.15)"><i class="bi bi-x-circle"
+                                style="color:#f87171"></i></div>
+                        <div>
+                            <div class="stat-value" id="cnt-rejected">0</div>
+                            <div class="stat-label">Rejected</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:rgba(37,99,235,.15)"><i class="bi bi-people"
+                                style="color:#60a5fa"></i></div>
+                        <div>
+                            <div class="stat-value" id="cnt-total">0</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email Preview Area -->
+            <div id="email-preview-area" class="email-preview-card" style="border-radius:12px">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <i class="bi bi-envelope-check-fill" style="color:#16a34a;font-size:1.3rem"></i>
+                    <span style="font-weight:700;color:#16a34a;font-size:1rem">Approval Email — Sent
+                        Successfully!</span>
+                </div>
+                <div class="email-body-preview">
+                    <div style="font-size:.82rem;color:var(--clr-muted);margin-bottom:.5rem"><strong>To:</strong> <span
+                            id="sim-email"></span></div>
+                    <div
+                        style="font-size:.82rem;color:var(--clr-muted);margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--clr-border)">
+                        <strong>Subject:</strong> 🎉 Congratulations! Your Admin Account Has Been Approved</div>
+                    <p style="color:var(--clr-text);line-height:1.75">
+                        Dear <strong id="sim-name"></strong>,<br><br>
+                        🎉 <strong>Congratulations!</strong> Your admin registration request has been approved by the
+                        Super Administrator.<br><br>
+                        You now have access to the Complaint Management System as an
+                        <strong>Administrator</strong>.<br><br>
+                        🔗 <strong>Login here:</strong> <a href="login.html" target="_blank">CMS Admin
+                            Portal</a><br><br>
+                        Your login credentials:<br>
+                        &nbsp;&nbsp;• Username: <strong id="sim-username"></strong><br>
+                        &nbsp;&nbsp;• Default Password: admin@<span id="sim-pass-hint"></span><br><br>
+                        Please change your password after your first login.<br><br>
+                        We look forward to working with you!<br><br>
+                        <em>— Braveena Selvam, Super Administrator</em><br>
+                        <em>Complaint Management System</em>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Requests Table -->
+            <div class="cms-card p-0 mt-3">
+                <div class="cms-card-header px-4 pt-3 pb-0" style="border:none">
+                    <span class="cms-card-title"><i class="bi bi-people me-2" style="color:#e11d48"></i>Admin
+                        Registration Requests</span>
+                    <span id="row-count" class="text-muted-cms" style="font-size:.8rem"></span>
+                </div>
+                <div class="table-responsive">
+                    <table class="cms-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>NIC</th>
+                                <th>Employee ID</th>
+                                <th>Email</th>
+                                <th>Username</th>
+                                <th>Reg. Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="req-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="empty-state" class="empty-state" style="display:none">
+                    <i class="bi bi-inbox"></i>
+                    <p>No admin requests found.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Approve Modal -->
+    <div class="modal fade" id="approveModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-shield-check text-success me-2"></i>Approve Registration
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="cms-alert cms-alert-success mb-0 d-flex align-items-center gap-3">
+                        <i class="bi bi-person-check" style="font-size:1.5rem"></i>
+                        <div>
+                            <span class="d-block fw-semibold mb-1">Approve <span id="modal-req-name"></span>?</span>
+                            <span style="font-size:.85rem">This will grant them Admin privileges and send a
+                                congratulations email with login credentials.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top:none;padding-top:0">
+                    <button class="btn-cms btn-outline-cms" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn-cms btn-success-cms" onclick="executeApprove()"><i
+                            class="bi bi-check-circle me-1"></i>Confirm Approval</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reject Modal -->
+    <div class="modal fade" id="rejectModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-x-circle text-danger me-2"></i>Reject Registration</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="cms-alert cms-alert-danger mb-3">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span>This will reject the admin request for <strong id="modal-reject-name"></strong>.</span>
+                    </div>
+                    <div class="cms-form-group">
+                        <label class="cms-label">Rejection Reason <span class="text-danger">*</span></label>
+                        <textarea class="cms-textarea" id="reject-reason-input" rows="3"
+                            placeholder="Provide a reason for rejecting this request…"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-cms btn-outline-cms" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn-cms btn-danger-cms" onclick="executeReject()"><i
+                            class="bi bi-x-circle me-1"></i>Confirm Rejection</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/data-store.js"></script>
+    <script>
+        const session = CMS.requireAuth(['super_admin']);
+        if (!session) window.location.href = 'login.html';
+
+        let currentReqId = null;
+        let currentReq = null;
+        let currentFilter = 'ALL';
+
+        function setFilter(f, el) {
+            currentFilter = f;
+            document.querySelectorAll('.req-filter-tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            renderRequests();
+        }
+
+        function renderStats() {
+            const all = CMS.getAdminRequests();
+            document.getElementById('cnt-pending').textContent = all.filter(r => r.status === 'PENDING').length;
+            document.getElementById('cnt-approved').textContent = all.filter(r => r.status === 'APPROVED').length;
+            document.getElementById('cnt-rejected').textContent = all.filter(r => r.status === 'REJECTED').length;
+            document.getElementById('cnt-total').textContent = all.length;
+        }
+
+        function renderRequests() {
+            let list = CMS.getAdminRequests();
+            if (currentFilter !== 'ALL') list = list.filter(r => r.status === currentFilter);
+
+            const tbody = document.getElementById('req-tbody');
+            const empty = document.getElementById('empty-state');
+            document.getElementById('row-count').textContent = `${list.length} request${list.length !== 1 ? 's' : ''}`;
+
+            if (!list.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+            empty.style.display = 'none';
+
+            tbody.innerHTML = list.map(r => {
+                const statusBadge = r.status === 'PENDING'
+                    ? `<span class="status-badge badge-pending"><i class="bi bi-clock"></i>Pending</span>`
+                    : r.status === 'APPROVED'
+                        ? `<span class="status-badge badge-approved"><i class="bi bi-check-circle"></i>Approved</span>`
+                        : `<span class="status-badge badge-rejected"><i class="bi bi-x-circle"></i>Rejected</span>`;
+
+                const actions = r.status === 'PENDING'
+                    ? `<div class="d-flex gap-2">
+                        <button class="btn-cms btn-success-cms py-1 px-2" style="font-size:.78rem" onclick="confirmApprove('${r.id}')">
+                            <i class="bi bi-check-circle me-1"></i>Approve
+                        </button>
+                        <button class="btn-cms btn-danger-cms py-1 px-2" style="font-size:.78rem" onclick="confirmReject('${r.id}')">
+                            <i class="bi bi-x-circle me-1"></i>Reject
+                        </button>
+                       </div>`
+                    : `<span class="text-muted-cms" style="font-size:.82rem"><i class="bi bi-check2-all me-1"></i>Processed</span>`;
+
+                return `
+                <tr>
+                    <td><div class="fw-semibold">${r.name}</div></td>
+                    <td>${r.nic}</td>
+                    <td>${r.employeeId}</td>
+                    <td><span style="color:var(--clr-muted);font-size:.85rem">${r.email}</span></td>
+                    <td><code style="font-size:.82rem">${r.username}</code></td>
+                    <td><span style="font-size:.85rem">${CMS.fmtDate(r.regDate)}</span></td>
+                    <td>${actions}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function confirmApprove(reqId) {
+            currentReqId = reqId;
+            currentReq = CMS.getAdminRequests().find(r => r.id === reqId);
+            document.getElementById('modal-req-name').textContent = currentReq.name;
+            new bootstrap.Modal(document.getElementById('approveModal')).show();
+        }
+
+        function executeApprove() {
+            const newAdmin = CMS.approveAdminRequest(currentReqId, currentReq.name, currentReq.email);
+            bootstrap.Modal.getInstance(document.getElementById('approveModal')).hide();
+
+            // Show email preview
+            const area = document.getElementById('email-preview-area');
+            document.getElementById('sim-email').textContent = currentReq.email;
+            document.getElementById('sim-name').textContent = currentReq.name.split(' ')[0];
+            document.getElementById('sim-username').textContent = currentReq.username;
+            document.getElementById('sim-pass-hint').textContent = currentReq.username.slice(0, 4);
+            area.classList.add('show');
+            setTimeout(() => area.scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+
+            renderStats();
+            renderRequests();
+            showToast(`${currentReq.name} approved successfully! Email sent.`, 'success');
+        }
+
+        function confirmReject(reqId) {
+            currentReqId = reqId;
+            currentReq = CMS.getAdminRequests().find(r => r.id === reqId);
+            document.getElementById('modal-reject-name').textContent = currentReq.name;
+            document.getElementById('reject-reason-input').value = '';
+            new bootstrap.Modal(document.getElementById('rejectModal')).show();
+        }
+
+        function executeReject() {
+            const reason = document.getElementById('reject-reason-input').value.trim();
+            if (!reason) { showToast('Please provide a rejection reason.', 'error'); return; }
+            CMS.rejectAdminRequest(currentReqId, reason);
+            bootstrap.Modal.getInstance(document.getElementById('rejectModal')).hide();
+            renderStats();
+            renderRequests();
+            showToast(`${currentReq.name}'s request has been rejected.`, 'info');
+        }
+
+        function toggleNotifPanel() {
+            const p = document.getElementById('notif-panel');
+            p.style.display = p.style.display === 'none' ? 'block' : 'none';
+            renderNotifList();
+        }
+
+        function renderNotifList() {
+            const list = CMS.getNotifications('super_admin').slice(0, 20);
+            const el = document.getElementById('notif-list');
+            if (!list.length) { el.innerHTML = '<div class="text-muted-cms text-center py-3">No notifications</div>'; return; }
+            el.innerHTML = list.map(n => `
+            <div class="d-flex gap-2 mb-2 p-2 rounded" style="background:${n.read ? 'transparent' : 'rgba(225,29,72,.06)'};cursor:pointer" onclick="CMS.markNotifRead(${n.id});renderNotifList();updateNotifBadge()">
+              <i class="bi bi-bell mt-1" style="color:#e11d48;flex-shrink:0"></i>
+              <div>
+                <div style="font-size:.82rem;font-weight:600">${n.title}</div>
+                <div style="font-size:.77rem;color:var(--clr-muted)">${n.body}</div>
+                <div style="font-size:.7rem;color:var(--clr-muted);margin-top:2px">${timeAgo(n.at)}</div>
+              </div>
+            </div>`).join('');
+        }
+
+        function markAllRead() {
+            CMS.getNotifications('super_admin').forEach(n => CMS.markNotifRead(n.id));
+            renderNotifList(); updateNotifBadge();
+        }
+
+        let profileOpen = false;
+        function toggleProfile() {
+            profileOpen = !profileOpen;
+        }
+
+        document.addEventListener('click', e => {
+            const panel = document.getElementById('notif-panel');
+            if (panel && panel.style.display !== 'none' && !panel.contains(e.target) && !e.target.closest('[onclick="toggleNotifPanel()"]')) {
+                panel.style.display = 'none';
+            }
+        });
+
+        // Init
+        const topName = document.getElementById('topbar-name');
+        if (topName) topName.textContent = session.name.split(' ')[0];
+
+        renderStats();
+        renderRequests();
+        updateNotifBadge();
+    </script>
+</body>
+
+</html>

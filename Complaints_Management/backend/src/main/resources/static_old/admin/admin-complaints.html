@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Complaints</title>
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body class="dash">
+
+<aside class="sidebar" id="sidebar">
+  <div class="brand">Complaint Platform</div>
+
+  <nav class="nav">
+    <a class="nav-item" href="/admin/dashboard">Dashboard</a>
+    <a class="nav-item active" href="/admin/complaints">Complaints</a>
+    <a class="nav-item" href="/admin/customers">Customers</a>
+    <a class="nav-item" href="/admin/companies">Companies</a>
+    <a class="nav-item" href="/logout">Logout</a>
+  </nav>
+</aside>
+
+
+<div class="content">
+  <header class="topbar">
+    <button class="icon-btn" id="toggleSidebar" aria-label="Toggle sidebar">☰</button>
+
+    <div class="topbar-right">
+      <div class="pill">
+        Complaints Management
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="title-row">
+      <h1>Complaints</h1>
+
+      <div class="row-right">
+        <select id="statusFilter" class="input small">
+          <option value="ALL">All</option>
+          <option value="PENDING">Pending</option>
+          <option value="IN_PROGRESS">In Progress</option>
+          <option value="RESOLVED">Resolved</option>
+          <option value="REJECTED">Rejected</option>
+        </select>
+
+        <input id="searchBox" class="input small" placeholder="Search title..." />
+      </div>
+    </div>
+
+    <section class="panel">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+          <tr>
+            <th style="width:90px;">ID</th>
+            <th>Title</th>
+            <th style="width:170px;">Status</th>
+            <th style="width:170px;">Created</th>
+            <th style="width:220px;">Actions</th>
+          </tr>
+          </thead>
+          <tbody id="complaintsBody">
+          <tr><td colspan="5">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>

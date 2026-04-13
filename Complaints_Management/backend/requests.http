@@ -1,0 +1,9 @@
+### Create Complaint
+POST http://localhost:8080/api/complaints
+Content-Type: application/json
+
+{
+"title": "Road issue",
+"description": "There is a pothole in the main road",
+"status": "PENDING"
+}

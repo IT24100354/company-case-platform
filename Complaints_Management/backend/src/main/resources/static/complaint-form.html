@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit New Complaint - CMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/styles.css">
+    <style>
+        .form-container { max-width: 800px; margin: 40px auto; padding: 30px; background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .form-label { font-weight: 600; color: #475569; margin-bottom: 8px; }
+        .form-control, .form-select { border-radius: 10px; padding: 12px; border: 1px solid #e2e8f0; }
+        .form-control:focus { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,0.1); }
+        .btn-submit { padding: 12px 30px; border-radius: 10px; font-weight: 700; transition: 0.3s; }
+        .preview-area { margin-top: 10px; font-size: 0.85rem; color: #64748b; }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container">
+    <div class="form-container">
+        <!-- Success Banner -->
+        <div id="successBanner" class="alert alert-success d-none mb-4" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> Complaint submitted successfully! Redirecting...
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3 class="mb-0">New Complaint Submission</h3>
+            <button class="btn btn-outline-secondary btn-sm" onclick="goBack()"><i class="bi bi-arrow-left"></i> Cancel</button>
+        </div>
+
+        <form id="complaintForm" enctype="multipart/form-data">
+            <div class="row g-3">
+                <div class="col-md-12">
+                    <label class="form-label">Complaint Title</label>
+                    <input type="text" id="title" class="form-control" placeholder="Short summary of the issue" required>
+                </div>
+
+                <div class="col-md-12">
+                    <label class="form-label">Detailed Description</label>
+                    <textarea id="description" class="form-control" rows="5" placeholder="Provide as much detail as possible..." required></textarea>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Company</label>
+                    <select id="companySelect" class="form-select" onchange="loadDepartments()">
+                        <option value="">Select Company</option>
+                    </select>
+                    <input type="hidden" id="companyIdHidden">
+                    <input type="text" id="companyDisplay" class="form-control" disabled style="display:none">
+                    <div class="invalid-feedback text-danger" id="companyError" style="display:none">Please select a company.</div>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Department</label>
+                    <select id="departmentSelect" class="form-select">
+                        <option value="">Select Department</option>
+                    </select>
+                    <div class="invalid-feedback text-danger" id="deptError" style="display:none">Please select a department.</div>
+                </div>
+
+                <div class="divider my-4"></div>
+                <h5 class="mb-3">Evidence Uploads (Optional)</h5>
+
+                <div class="col-md-4">
+                    <label class="form-label"><i class="bi bi-file-earmark-image me-1"></i> Documents/Images</label>
+                    <input type="file" id="documentFile" class="form-control" accept=".png,.jpg,.jpeg,.pdf">
+                    <small class="text-muted">PNG, JPG, PDF</small>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label"><i class="bi bi-camera-video me-1"></i> Video Recording</label>
+                    <input type="file" id="videoFile" class="form-control" accept=".mp4">
+                    <small class="text-muted">MP4 only</small>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label"><i class="bi bi-mic me-1"></i> Voice Recording</label>
+                    <input type="file" id="voiceFile" class="form-control" accept=".mp3,.wav,.m4a">
+                    <small class="text-muted">MP3, WAV, M4A</small>
+                </div>
+
+                <div class="col-12 mt-4">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="termsCheck">
+                        <label class="form-check-label" for="termsCheck">
+                            I accept the <strong>Terms and Conditions</strong> for submitting this complaint.
+                        </label>
+                        <div class="invalid-feedback text-danger" id="termsError" style="display:none">Please accept the terms and conditions before submitting.</div>
+                    </div>
+                </div>
+
+                <div class="col-12 mt-4">
+                    <button type="submit" class="btn btn-primary btn-submit w-100" id="submitBtn">Submit Complaint</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="assets/data-store.js"></script>
+<script>
+    const session = CMS.requireAuth(['customer', 'employee']);
+
+    const params = new URLSearchParams(window.location.search);
+    const editId = params.get('editId');
+    const role = (session.role || "").toUpperCase();
+    const isEmployee = role === 'EMPLOYEE';
+    let companyList = [];
+
+    document.addEventListener("DOMContentLoaded", async () => {
+        await fetchCompanies();
+        setupForm();
+        
+        if (editId) {
+            document.querySelector('h3').innerText = "Edit Complaint";
+            document.getElementById('submitBtn').innerText = "Update Complaint";
+            // The file inputs are optional for edit; no need to clear 'required' on a non-existent element
+            await loadEditData();
+        }
+    });
+
+    function goBack() {
+        if (role === 'EMPLOYEE') window.location.href = 'employee-dashboard.html';
+        else if (role === 'ADMIN') window.location.href = 'admin-dashboard.html';
+        else if (role === 'SUPER_ADMIN') window.location.href = 'super-admin-dashboard.html';
+        else window.location.href = 'customer-dashboard.html';
+    }
+
+    async function fetchCompanies() {
+        try {
+            const res = await fetch('/api/companies');
+            companyList = await res.json();
+        } catch (e) { console.error("Failed to load companies", e); }
+    }
+
+    function setupForm() {
+        const select = document.getElementById('companySelect');
+        const display = document.getElementById('companyDisplay');
+        const hidden = document.getElementById('companyIdHidden');
+
+        if (isEmployee) {
+            select.style.display = 'none';
+            select.required = false;
+            display.style.display = 'block';
+            display.value = session.companyName || 'Your Company';
+            hidden.value = session.companyId;
+            loadDepartments(session.companyId);
+        } else {
+            companyList.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name;
+                select.appendChild(opt);
+            });
+        }
+    }
+
+    async function loadDepartments(cId) {
+        const compId = cId || document.getElementById('companySelect').value;
+        const deptSelect = document.getElementById('departmentSelect');
+        deptSelect.innerHTML = '<option value="">Select Department</option>';
+        if (!compId) return;
+        try {
+            const res = await fetch(`/api/departments?companyId=${compId}`);
+            const depts = await res.json();
+            depts.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.name;
+                opt.textContent = d.name;
+                deptSelect.appendChild(opt);
+            });
+        } catch (e) { console.error("Failed to load departments", e); }
+    }
+
+    async function loadEditData() {
+        try {
+            const res = await fetch(`/api/complaints/${editId}?userId=${session.id}`);
+            const data = await res.json();
+            if (data.status !== 'PENDING') {
+                alert("Only PENDING complaints can be edited.");
+                goBack();
+                return;
+            }
+            document.getElementById('title').value = data.title;
+            document.getElementById('description').value = data.description;
+            if (!isEmployee) {
+                document.getElementById('companySelect').value = data.companyId;
+                await loadDepartments(data.companyId);
+            }
+            document.getElementById('departmentSelect').value = data.department;
+
+            // Fetch and show existing evidence
+            try {
+                const evRes = await fetch(`/api/admin/complaints/${editId}/evidence?userId=${session.id}`);
+                if (evRes.ok) {
+                    const evList = await evRes.json();
+                    if (evList.length > 0) {
+                        const evDiv = document.createElement('div');
+                        evDiv.id = 'existing-evidence-container';
+                        evDiv.className = 'col-12 mt-3';
+                        evDiv.innerHTML = `<h6 class="text-primary fw-bold mb-3"><i class="bi bi-paperclip"></i> Existing Evidence:</h6><div class="d-flex flex-wrap gap-3"></div>`;
+                        const listDiv = evDiv.querySelector('div');
+                        evList.forEach(ev => {
+                            const item = document.createElement('div');
+                            item.className = 'd-flex align-items-center gap-2 p-2 rounded border bg-light';
+                            item.innerHTML = `
+                                <span class="small fw-semibold text-truncate" style="max-width:150px" title="${ev.fileName}">${ev.fileName}</span>
+                                <div class="btn-group">
+                                    <a href="${ev.filePath}" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-1" title="View"><i class="bi bi-eye"></i></a>
+                                    <button type="button" class="btn btn-xs btn-outline-danger py-0 px-1" onclick="deleteExistingEvidence(${ev.id}, this)" title="Remove"><i class="bi bi-trash"></i></button>
+                                </div>
+                            `;
+                            listDiv.appendChild(item);
+                        });
+                        document.querySelector('.divider.my-4').before(evDiv);
+                    }
+                }
+            } catch (ee) { console.error("Failed to load evidence", ee); }
+
+        } catch (e) { console.error("Load failed", e); }
+    }
+
+    async function deleteExistingEvidence(evId, btn) {
+        if (!confirm("Are you sure you want to remove this file?")) return;
+        try {
+            const res = await fetch(`/api/admin/complaints/${editId}/evidence/${evId}?userId=${session.id}`, { method: 'DELETE' });
+            if (res.ok) {
+                btn.closest('.d-flex').remove();
+                showToast("File removed successfully.", "success");
+                // If last one removed, clean up header
+                const container = document.getElementById('existing-evidence-container');
+                if (container && container.querySelector('.d-flex.flex-wrap').children.length === 0) {
+                    container.remove();
+                }
+            } else {
+                const data = await res.json();
+                alert("Error: " + (data.error || "Failed to delete file"));
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    function showToast(message, type = 'info') {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;';
+            document.body.appendChild(container);
+        }
+        const el = document.createElement('div');
+        el.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} shadow-lg`;
+        el.style.cssText = 'min-width:300px;margin-bottom:0;border-radius:12px;display:flex;align-items:center;gap:12px;animation:slideIn 0.3s ease-out;';
+        el.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : 'info-circle'}"></i><span>${message}</span>`;
+        container.appendChild(el);
+        setTimeout(() => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateX(20px)';
+            el.style.transition = 'all 0.3s';
+            setTimeout(() => el.remove(), 300);
+        }, 4000);
+    }
+
+    document.getElementById('complaintForm').onsubmit = async (e) => {
+        e.preventDefault();
+        
+        // Reset errors
+        document.getElementById('companyError').style.display = 'none';
+        document.getElementById('deptError').style.display = 'none';
+        document.getElementById('termsError').style.display = 'none';
+
+        const title = document.getElementById('title').value;
+        const description = document.getElementById('description').value;
+        const dept = document.getElementById('departmentSelect').value;
+        const termsAccepted = document.getElementById('termsCheck').checked;
+        
+        let companyId = "";
+        let companyName = "";
+
+        if (isEmployee) {
+            companyId = session.companyId;
+            companyName = session.companyName;
+        } else {
+            const s = document.getElementById('companySelect');
+            companyId = s.value;
+            companyName = s.options[s.selectedIndex].text;
+        }
+
+        // Validation
+        let hasError = false;
+        if (!companyId) { document.getElementById('companyError').style.display = 'block'; hasError = true; }
+        if (!dept) { document.getElementById('deptError').style.display = 'block'; hasError = true; }
+        if (!termsAccepted) { document.getElementById('termsError').style.display = 'block'; hasError = true; }
+
+        if (hasError) return;
+
+        const formData = new FormData();
+        formData.append('userId', session.id);
+        formData.append('title', title);
+        formData.append('description', description);
+        formData.append('category', 'GENERAL');
+        formData.append('companyId', companyId);
+        formData.append('companyName', companyName);
+        formData.append('department', dept);
+
+        // Files
+        const docFile = document.getElementById('documentFile').files[0];
+        const vidFile = document.getElementById('videoFile').files[0];
+        const voiFile = document.getElementById('voiceFile').files[0];
+
+        if (docFile) formData.append('documentFile', docFile);
+        if (vidFile) formData.append('videoFile', vidFile);
+        if (voiFile) formData.append('voiceFile', voiFile);
+
+        try {
+            const url = editId ? `/api/complaints/${editId}?userId=${session.id}` : '/api/complaints/submit';
+            const method = editId ? 'PUT' : 'POST';
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
+
+            const res = await fetch(url, { method, body: formData });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || res.statusText);
+            }
+            const result = await res.json();
+            if (result.success || result.id) {
+                document.getElementById('successBanner').classList.remove('d-none');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                showToast(editId ? "Complaint updated successfully!" : "Complaint submitted successfully!", "success");
+                setTimeout(() => { goBack(); }, 1500);
+            } else {
+                alert("Operation failed: " + result.message);
+                submitBtn.disabled = false;
+                submitBtn.innerText = editId ? "Update Complaint" : "Submit Complaint";
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error: " + err.message);
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('submitBtn').innerText = editId ? "Update Complaint" : "Submit Complaint";
+        }
+    };
+</script>
+</body>
+</html>

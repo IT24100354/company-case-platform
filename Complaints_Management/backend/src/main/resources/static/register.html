@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Registration – CMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="assets/styles.css" />
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: var(--clr-bg);
+            background-image: radial-gradient(var(--clr-border) 1px, transparent 1px);
+            background-size: 32px 32px;
+            padding: 2rem 0;
+        }
+
+        .auth-card {
+            max-width: 540px;
+            width: 100%;
+            padding: 2.5rem 2.5rem;
+            border-radius: 16px;
+            background: var(--clr-surface);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--clr-border);
+            margin: auto;
+        }
+
+        .step-container {
+            display: none;
+        }
+
+        .step-container.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .role-selector {
+            border: 1px solid var(--clr-border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            height: 100%;
+        }
+
+        .role-selector:hover {
+            border-color: var(--clr-primary);
+            background: rgba(37, 99, 235, 0.03);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .role-selector.selected {
+            border-color: var(--clr-primary);
+            background: rgba(37, 99, 235, 0.06);
+            box-shadow: 0 0 0 2px var(--clr-primary);
+        }
+
+        .role-selector i {
+            font-size: 2rem;
+            color: var(--clr-primary);
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="auth-card">
+        <div class="text-center mb-4" id="header-block">
+            <h1 class="fw-bold mb-1" style="font-size:1.5rem; color:var(--clr-text)" id="flow-title">Create an Account</h1>
+            <p class="text-muted-cms" style="font-size:.85rem" id="flow-desc">Join the Complaint Management Platform</p>
+        </div>
+
+        <!-- Step 1: Choose Role -->
+        <div id="step-1" class="step-container active">
+            <label class="cms-label text-center d-block mb-3">SELECT YOUR ROLE</label>
+            <div class="row g-3 mb-4">
+                <div class="col-6">
+                    <div class="role-selector" onclick="selectRole('customer', this)">
+                        <i class="bi bi-people"></i>
+                        <div class="fw-600" style="font-size:.85rem">Customer</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="role-selector" onclick="selectRole('employee', this)">
+                        <i class="bi bi-person-workspace"></i>
+                        <div class="fw-600" style="font-size:.85rem">Employee</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="role-selector" onclick="selectRole('admin', this)">
+                        <i class="bi bi-person-badge"></i>
+                        <div class="fw-600" style="font-size:.85rem">Admin</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="role-selector" onclick="selectRole('company_admin', this)">
+                        <i class="bi bi-building"></i>
+                        <div class="fw-600" style="font-size:.85rem">Company</div>
+                    </div>
+                </div>
+            </div>
+            <div id="role-error" class="invalid-feedback-msg text-center mb-3">Please select a role to continue.</div>
+
+            <button onclick="handleRoleSubmit()"
+                class="btn-cms btn-primary-cms w-100 py-2 d-flex justify-content-center align-items-center gap-2 mb-4"
+                style="font-size:1rem">
+                Continue <i class="bi bi-arrow-right"></i>
+            </button>
+        </div>
+
+        <!-- Step 2: Registration Form -->
+        <div id="step-2" class="step-container">
+            <form onsubmit="handleFormSubmit(event)">
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="cms-label" for="fname">First Name</label>
+                        <input type="text" id="fname" class="cms-input" placeholder="John" required />
+                    </div>
+                    <div class="col-6">
+                        <label class="cms-label" for="lname">Last Name</label>
+                        <input type="text" id="lname" class="cms-input" placeholder="Doe" required />
+                    </div>
+                </div>
+
+                <div id="verification-fields" style="display:none">
+                    <div class="cms-form-group mb-3" id="company-select-wrap">
+                        <label class="cms-label" for="company">Company</label>
+                        <select id="company" class="cms-input">
+                            <option value="">Select Company</option>
+                            <option value="SLT Digital">SLT Digital</option>
+                            <option value="Lanka Electronics">Lanka Electronics</option>
+                            <option value="QuickShop.lk">QuickShop.lk</option>
+                            <option value="ABC Garments">ABC Garments</option>
+                        </select>
+                    </div>
+
+                    <div class="cms-form-group mb-3">
+                        <label class="cms-label" for="nic" id="nic-label">National ID Card (NIC)</label>
+                        <input type="text" id="nic" class="cms-input" placeholder="e.g. 123456789V" maxlength="12" />
+                    </div>
+
+                    <div class="cms-form-group mb-3" id="emp-id-wrap">
+                        <label class="cms-label" for="employeeId">Company Employee ID</label>
+                        <input type="text" id="employeeId" class="cms-input" placeholder="e.g. EMP-001" />
+                    </div>
+                </div>
+
+                <div class="cms-form-group mb-3">
+                    <label class="cms-label" for="email">Email Address</label>
+                    <input type="email" id="email" class="cms-input" placeholder="email@example.com" required />
+                </div>
+
+                <div class="cms-form-group mb-3">
+                    <label class="cms-label" for="username">Username</label>
+                    <input type="text" id="username" class="cms-input" placeholder="Choose a username" required />
+                </div>
+
+                <div class="row g-3 mb-2">
+                    <div class="col-6">
+                        <label class="cms-label" for="new-password">Password</label>
+                        <input type="password" id="new-password" class="cms-input" placeholder="Min 6 characters" required />
+                    </div>
+                    <div class="col-6">
+                        <label class="cms-label" for="confirm-password">Confirm</label>
+                        <input type="password" id="confirm-password" class="cms-input" placeholder="Confirm password" required />
+                    </div>
+                </div>
+                <div class="mb-4"></div>
+
+                <button type="submit" id="form-submit-btn"
+                    class="btn-cms btn-primary-cms w-100 py-2 d-flex justify-content-center align-items-center gap-2 mb-2"
+                    style="font-size:1rem">
+                    Register Now <i class="bi bi-check-circle"></i>
+                </button>
+            </form>
+        </div>
+
+        <!-- Step 3: Success / Pending Approval -->
+        <div id="step-3" class="step-container text-center">
+            <div style="width:80px;height:80px;border-radius:50%;background:rgba(217,119,6,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;font-size:2.5rem;color:var(--clr-warning)">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <h2 class="fw-bold mb-2" style="font-size:1.3rem; color:var(--clr-text)">Approval is Pending</h2>
+            <div class="cms-alert cms-alert-warning text-start mx-auto mb-4"
+                style="max-width:380px;font-size:.85rem;line-height:1.5">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <div style="color:#1e293b">Your registration request has been submitted and is awaiting review by the Super Admin. You will be notified via email once approved.</div>
+            </div>
+            <a href="login.html"
+                class="btn-cms btn-outline-cms w-100 py-2 d-flex justify-content-center align-items-center gap-2"
+                style="font-size:1rem">
+                Return to Login
+            </a>
+        </div>
+
+        <div class="text-center"
+            style="font-size:.85rem; border-top: 1px solid var(--clr-border); padding-top:1.5rem; margin-top:0.5rem"
+            id="back-nav">
+            Already have an account? <a href="login.html" class="text-decoration-none fw-semibold"
+                style="color:var(--clr-primary)">Log in</a>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+    <script>
+        let selectedRole = '';
+
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toast-container');
+            const icons = { success: 'bi-check-circle-fill', error: 'bi-x-circle-fill', info: 'bi-info-circle-fill' };
+            const colors = { success: '#16a34a', error: '#dc2626', info: '#2563eb' };
+            const el = document.createElement('div');
+            el.className = `toast-item toast-${type}`;
+            el.innerHTML = `<i class="bi ${icons[type]}" style="color:${colors[type]};flex-shrink:0"></i><span>${message}</span>`;
+            container.appendChild(el);
+            setTimeout(() => { el.style.animation = 'fadeOut 0.3s ease forwards'; setTimeout(() => el.remove(), 300); }, duration);
+        }
+
+        function switchStep(from, to, newTitle, newDesc) {
+            document.getElementById(`step-${from}`).classList.remove('active');
+            document.getElementById(`step-${to}`).classList.add('active');
+            if (newTitle) document.getElementById('flow-title').textContent = newTitle;
+            if (newDesc !== undefined) document.getElementById('flow-desc').textContent = newDesc;
+        }
+
+        function selectRole(role, el) {
+            selectedRole = role;
+            document.querySelectorAll('.role-selector').forEach(i => i.classList.remove('selected'));
+            el.classList.add('selected');
+            document.getElementById('role-error').classList.remove('show');
+            console.log("Selected role:", selectedRole);
+        }
+
+        function handleRoleSubmit() {
+            if (!selectedRole) {
+                document.getElementById('role-error').classList.add('show');
+                return;
+            }
+            // Show/Hide verification fields
+            const vf = document.getElementById('verification-fields');
+            const companyWrap = document.getElementById('company-select-wrap');
+            const empIdWrap = document.getElementById('emp-id-wrap');
+            const nicLabel = document.getElementById('nic-label');
+
+            if (selectedRole === 'employee') {
+                vf.style.display = 'block';
+                companyWrap.style.display = 'block';
+                empIdWrap.style.display = 'block';
+                nicLabel.textContent = "National ID Card (NIC)";
+                document.getElementById('nic').required = true;
+                document.getElementById('employeeId').required = true;
+                document.getElementById('company').required = true;
+            } else if (selectedRole === 'company_admin') {
+                vf.style.display = 'block';
+                companyWrap.style.display = 'block';
+                empIdWrap.style.display = 'none';
+                nicLabel.textContent = "Owner/Manager NIC";
+                document.getElementById('nic').required = true;
+                document.getElementById('employeeId').required = false;
+                document.getElementById('company').required = true;
+            } else {
+                vf.style.display = 'none';
+                document.getElementById('nic').required = false;
+                document.getElementById('employeeId').required = false;
+                document.getElementById('company').required = false;
+            }
+            switchStep(1, 2, 'Personal Details', `Complete your ${selectedRole.replace('_', ' ')} profile details`);
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+
+            const p1 = document.getElementById('new-password').value;
+            const p2 = document.getElementById('confirm-password').value;
+            
+            if (p1.length < 6) {
+                showToast('Password must be at least 6 characters.', 'error');
+                return;
+            }
+            if (p1 !== p2) {
+                showToast('Passwords do not match.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('form-submit-btn');
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Registering...';
+            btn.disabled = true;
+
+            const payload = {
+                role: selectedRole.toUpperCase(),
+                fullName: (document.getElementById('fname').value.trim() + ' ' + document.getElementById('lname').value.trim()).trim(),
+                username: document.getElementById('username').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                password: p1,
+                nic: document.getElementById('nic').value.trim(),
+                employeeId: document.getElementById('employeeId').value.trim(),
+                companyName: document.getElementById('company').value
+            };
+
+            fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json().then(data => ({ ok: res.ok, data })))
+            .then(({ ok, data }) => {
+                btn.innerHTML = 'Register Now <i class="bi bi-check-circle"></i>';
+                btn.disabled = false;
+
+                if (ok) {
+                    showToast('Registration successful!', 'success');
+                    switchStep(2, 3, '', '');
+                    document.getElementById('header-block').style.display = 'none';
+                    document.getElementById('back-nav').style.display = 'none';
+                    if (selectedRole === 'customer' || selectedRole === 'employee') {
+                        const roleName = selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1);
+                        document.querySelector('#step-3 h2').textContent = 'Registration Successful';
+                        document.querySelector('#step-3 .cms-alert div').textContent = `Your ${selectedRole} account has been created. You can now log in directly.`;
+                        document.querySelector('#step-3 .bi-hourglass-split').className = 'bi bi-check-circle-fill';
+                        document.querySelector('#step-3 .text-center > div').style.background = 'rgba(22, 163, 74, 0.15)';
+                        document.querySelector('#step-3 .text-center > div').style.color = '#16a34a';
+                    }
+                } else {
+                    showToast(data.message || 'Registration failed.', 'error');
+                }
+            })
+            .catch(err => {
+                btn.innerHTML = 'Register Now <i class="bi bi-check-circle"></i>';
+                btn.disabled = false;
+                showToast('Server connection error.', 'error');
+            });
+        }
+    </script>
+</body>
+
+</html>
