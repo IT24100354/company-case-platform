@@ -39,6 +39,7 @@ public class User {
     private Long companyId;
     private String companyName;
     private String department;
+    private String registrationNumber;
     private boolean enabled = false;
 
     @Column(nullable = false)
@@ -70,6 +71,8 @@ public class User {
     public void setCompanyName(String companyName) { this.companyName = companyName; }
     public String getDepartment() { return department; }
     public void setDepartment(String department) { this.department = department; }
+    public String getRegistrationNumber() { return registrationNumber; }
+    public void setRegistrationNumber(String registrationNumber) { this.registrationNumber = registrationNumber; }
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public LocalDateTime getCreatedAt() { return createdAt; }

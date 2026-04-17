@@ -235,17 +235,23 @@
       document.getElementById('topbar-title').textContent = c.id;
       document.getElementById('topbar-status').innerHTML = CMS.statusBadge(c.status, 'admin');
       document.getElementById('msgs-link').href = `communication.html?id=${c.id}`;
+      
+      let resData = null;
+      if (['RESOLUTION_SENT', 'RESOLUTION_REJECTED', 'RESOLVED'].includes(c.status)) {
+          const rResp = await fetch(`/api/complaints/${c.id}/resolution`);
+          if (rResp.ok) resData = await rResp.json();
+      }
 
-      const html = buildDetailHTML(c);
+      const html = buildDetailHTML(c, resData);
       document.getElementById('page-content').innerHTML = html;
       updateNotifBadge();
     }
 
-    function buildDetailHTML(c) {
+    function buildDetailHTML(c, resolution) {
       const canApprove = c.status === 'PENDING';
       const canForward = c.status === 'PENDING' || c.status === 'APPROVED';
       const canStartInv = c.status === 'VIEWED';
-      const canResolve = c.resolutionDoc && !['RESOLVED', 'REJECTED'].includes(c.status) && c.adminResolutionDecision !== 'APPROVED';
+      const canResolve = c.status === 'RESOLUTION_SENT';
 
       const evidenceList = c.evidence || [];
       // Deduplicate by path/filename just in case
@@ -298,20 +304,24 @@
       </div>`;
       }).join('') : `<div class="timeline-item"><div class="timeline-dot active"></div><div class="timeline-text">${c.status}</div><div class="timeline-time">No history available</div></div>`;
 
-      const resolutionHTML = c.resolutionDoc ? `
-    <div class="resolution-section d-flex align-items-center gap-3">
-        <i class="bi bi-file-earmark-check-fill" style="font-size:2rem;color:#16a34a"></i>
-        <div style="flex:1">
-            <div style="font-weight:700;color:#16a34a">Resolution Document Submitted</div>
-            <div style="font-size:.82rem;color:var(--clr-muted)">${c.resolutionDoc.name} — ${CMS.fmtDateTime(c.resolutionSubmittedAt)}</div>
+      const resolutionHTML = resolution ? `
+    <div class="resolution-section mb-3">
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <i class="bi bi-file-earmark-check-fill" style="font-size:2rem;color:#16a34a"></i>
+            <div style="flex:1">
+                <div style="font-weight:700;color:#16a34a">Resolution Submitted</div>
+                <div style="font-size:.82rem;color:var(--clr-muted)">By Department — ${CMS.fmtDateTime(resolution.submittedAt)}</div>
+            </div>
+            <div class="d-flex gap-2">
+                ${canResolve ? `
+                <button class="btn btn-sm btn-success" onclick="doApproveResolution()"><i class="bi bi-check-circle me-1"></i>Accept</button>
+                <button class="btn btn-sm btn-danger" onclick="new bootstrap.Modal(document.getElementById('resolveRejectModal')).show()"><i class="bi bi-x-circle me-1"></i>Reject</button>
+                ` : ''}
+            </div>
         </div>
-        <div class="d-flex gap-2 flex-wrap">
-            <button class="btn-cms btn-outline-cms py-1 px-2" style="font-size:.78rem" onclick="viewPdf('${c.id}')"><i class="bi bi-eye me-1"></i>View</button>
-            <button class="btn-cms btn-outline-cms py-1 px-2" style="font-size:.78rem" onclick="generatePdf('${c.id}')"><i class="bi bi-download me-1"></i>Download</button>
-            ${canResolve ? `
-            <button class="btn-cms btn-success-cms py-1 px-2" style="font-size:.78rem" onclick="doApproveResolution()"><i class="bi bi-check-circle me-1"></i>Accept Resolution</button>
-            <button class="btn-cms btn-danger-cms py-1 px-2" style="font-size:.78rem" onclick="new bootstrap.Modal(document.getElementById('resolveRejectModal')).show()"><i class="bi bi-x-circle me-1"></i>Reject</button>
-            ` : ''}
+        <div class="p-3 bg-white border rounded-3">
+            <h6 class="fw-bold mb-1">${resolution.title}</h6>
+            <p class="mb-0 small text-muted">${resolution.description}</p>
         </div>
     </div>` : '';
 

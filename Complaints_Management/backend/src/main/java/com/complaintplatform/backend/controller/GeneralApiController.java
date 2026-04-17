@@ -24,12 +24,4 @@ public class GeneralApiController {
     public ResponseEntity<List<Company>> getCompanies() {
         return ResponseEntity.ok(companyRepo.findAll());
     }
-
-    @GetMapping("/departments")
-    public ResponseEntity<List<Department>> getDepartments(@RequestParam(value = "companyId", required = false) Long companyId) {
-        if (companyId != null) {
-            return ResponseEntity.ok(departmentRepo.findByCompanyId(companyId));
-        }
-        return ResponseEntity.ok(departmentRepo.findAll());
-    }
 }

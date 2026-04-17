@@ -37,12 +37,65 @@
         .chat-item.active { border-left: 4px solid var(--clr-primary); }
 
         .chat-main { flex: 1; display: flex; flex-direction: column; background: #fff; }
-        .chat-header { padding: 16px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .chat-header { padding: 16px 24px; border-bottom: 1px solid #e2e8f0; }
         .chat-body { flex: 1; overflow-y: auto; padding: 24px; background: #f8fafc; display: flex; flex-direction: column; gap: 12px; }
         
-        .msg { max-width: 75%; padding: 12px 16px; border-radius: 12px; font-size: 0.9rem; margin-bottom: 4px; }
-        .msg-received { align-self: flex-start; background: #fff; border: 1px solid #e2e8f0; color: #1e293b; }
-        .msg-sent { align-self: flex-end; background: var(--clr-primary); color: #fff; }
+        .msg-bubble { 
+            max-width: 80%; 
+            padding: 12px 16px; 
+            border-radius: 16px; 
+            font-size: 0.95rem; 
+            margin-bottom: 16px; 
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            line-height: 1.5;
+            width: fit-content;
+            min-width: 160px;
+        }
+        .msg-bubble.me { 
+            align-self: flex-end; 
+            background: #2563eb; 
+            color: #fff; 
+            border-bottom-right-radius: 4px;
+        }
+        .msg-bubble.other { 
+            align-self: flex-start; 
+            background: #fff; 
+            border: 1px solid #e2e8f0; 
+            color: #1e293b; 
+            border-bottom-left-radius: 4px;
+        }
+
+        .bubble-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .msg-bubble.me .bubble-header {
+            border-bottom-color: rgba(255,255,255,0.15);
+        }
+
+        .sender-name {
+            font-size: 0.75rem;
+            font-weight: 800;
+        }
+
+        .bubble-time {
+            font-size: 0.7rem;
+            opacity: 0.8;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .msg-text {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 1rem;
+        }
 
         .chat-input-area { padding: 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 12px; background: #fff; }
         .chat-input { flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 16px; outline: none; transition: 0.2s; }
@@ -50,6 +103,11 @@
         .btn-send { background: var(--clr-primary); color: #fff; border: none; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
         
         .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; }
+        
+        .channel-tabs { display: flex; gap: 8px; }
+        .channel-tab { padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; border: 1px solid #e2e8f0; cursor: pointer; background: #fff; transition: 0.2s; }
+        .channel-tab:hover { background: #f1f5f9; }
+        .channel-tab.active { background: var(--clr-primary); color: #fff; border-color: var(--clr-primary); }
     </style>
 </head>
 <body class="bg-light">
@@ -69,7 +127,7 @@
         
         <div class="comm-container">
             <div class="comm-sidebar">
-                <div class="p-3 border-bottom bg-light fw-bold text-muted small text-uppercase letter-spacing-1">My Cases</div>
+                <div class="p-3 border-bottom bg-light fw-bold text-muted small text-uppercase letter-spacing-1">Talk about Cases</div>
                 <div class="chat-list" id="chat-list">
                     <!-- Complaints will load here -->
                 </div>
@@ -79,7 +137,7 @@
                 <div class="empty-state">
                     <i class="bi bi-headset mb-3" style="font-size: 3.5rem; opacity: 0.4;"></i>
                     <h5>Support Messaging</h5>
-                    <p class="small">Select a complaint to talk with an Admin</p>
+                    <p class="small">Select a complaint to talk with relevant teams</p>
                 </div>
             </div>
         </div>
@@ -87,16 +145,36 @@
 
     <script src="assets/data-store.js"></script>
     <script>
-        const session = CMS.requireAuth(['customer', 'employee']);
+        const session = CMS.requireAuth(['customer', 'employee', 'company_admin', 'dept_user', 'admin', 'super_admin']);
         let complaints = [];
         let activeChat = null;
+        let activeChannel = 'employee';
 
         document.addEventListener('DOMContentLoaded', async () => {
             const role = session.role.toUpperCase();
-            document.getElementById('portal-brand').textContent = role + ' PORTAL';
-            document.getElementById('nav-dash').href = (role === 'CUSTOMER' ? 'customer-dashboard.html' : 'employee-dashboard.html');
+            document.getElementById('portal-brand').textContent = role.replace('_', ' ') + ' PORTAL';
+            
+            // Set dynamic dashboard link
+            const dashMap = {
+                'CUSTOMER': 'customer-dashboard.html',
+                'EMPLOYEE': 'employee-dashboard.html',
+                'COMPANY_ADMIN': 'company-admin-dashboard.html',
+                'DEPT_USER': 'department-dashboard.html',
+                'ADMIN': 'admin-dashboard.html',
+                'SUPER_ADMIN': 'super-admin-dashboard.html'
+            };
+            document.getElementById('nav-dash').href = dashMap[role] || '#';
+            
+            // Set default channel based on role
+            if (role === 'COMPANY_ADMIN') activeChannel = 'company';
+            else if (role === 'DEPT_USER') activeChannel = 'department';
             
             await loadComplaints();
+            CMS.pollUnreadCounts();
+            // Refresh list every 15s to sync badges/sorting
+            setInterval(() => {
+                renderChatList();
+            }, 15000);
         });
 
         async function loadComplaints() {
@@ -111,13 +189,28 @@
             const listEl = document.getElementById('chat-list');
             listEl.innerHTML = '';
             
-            // Only show complaints that are NOT PENDING or have been approved/forwarded etc.
-            // Actually, allow communication for any complaint once submitted.
+            // 1. Attach unread counts
             complaints.forEach(c => {
+                c.unreadCount = CMS.getUnreadCount('cmp', c.id);
+            });
+            
+            // 2. Sort: Unread first, then date
+            const sorted = [...complaints].sort((a,b) => {
+                if ((b.unreadCount || 0) !== (a.unreadCount || 0)) {
+                    return (b.unreadCount || 0) - (a.unreadCount || 0);
+                }
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+            
+            sorted.forEach(c => {
                 const el = document.createElement('div');
                 el.className = `chat-item ${activeChat && activeChat.id === c.id ? 'active' : ''}`;
                 el.onclick = () => selectChat(c);
+                
+                const badgeHtml = c.unreadCount > 0 ? `<span class="chat-badge-unread">${c.unreadCount}</span>` : '';
+
                 el.innerHTML = `
+                    ${badgeHtml}
                     <div class="d-flex justify-content-between mb-1">
                         <span class="badge bg-light text-dark shadow-xs" style="font-size:0.6rem">CMP-${String(c.id).padStart(3,'0')}</span>
                         <span class="small opacity-75" style="font-size:0.65rem">${new Date(c.createdAt).toLocaleDateString()}</span>
@@ -125,7 +218,7 @@
                     <div class="fw-bold text-truncate mb-1" style="font-size:0.85rem">${c.title}</div>
                     <div class="d-flex align-items-center gap-2">
                         <span class="badge" style="font-size:0.6rem; background: ${getStatusColor(c.status)}">${c.status}</span>
-                        <span class="text-muted text-truncate italic" style="font-size:0.7rem">${c.companyName}</span>
+                        <span class="text-muted text-truncate italic" style="font-size:0.7rem">${c.companyName || 'General'}</span>
                     </div>
                 `;
                 listEl.appendChild(el);
@@ -141,56 +234,114 @@
 
         async function selectChat(c) {
             activeChat = c;
+            // Mark as read immediately on frontend and backend
+            CMS.markMessagesRead(c.id, activeChannel);
+            
+            // Adjust channel to 'employee' if complainant, or role-based default
+            const role = session.role.toUpperCase();
+            if (role === 'CUSTOMER' || role === 'EMPLOYEE') activeChannel = 'employee';
+            
             renderChatList();
+            await renderChatMain();
+        }
+
+        async function switchChannel(channel) {
+            activeChannel = channel;
             await renderChatMain();
         }
 
         async function renderChatMain() {
             const main = document.getElementById('chat-main');
             const c = activeChat;
+            if (!c) return;
 
             const res = await fetch(`/api/admin/complaints/${c.id}/chat?userId=${session.id}`);
-            let messages = [];
+            let allMessages = [];
             if (res.ok) {
-                const raw = await res.json();
-                // Filter specifically for the "complainant <-> admin" channel
-                messages = raw.filter(m => m.channel === 'employee');
+                allMessages = await res.json();
+            }
+
+            const messages = allMessages.filter(m => m.channel === activeChannel);
+            const role = session.role.toUpperCase();
+
+            // Determine visible channels
+            let channels = [];
+            if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
+                channels = [
+                    { id: 'employee', label: 'Complainant' },
+                    { id: 'company', label: 'Company Admin' },
+                    { id: 'department', label: 'Department' },
+                    { id: 'admins', label: 'Internal Admins' }
+                ];
+            } else if (role === 'COMPANY_ADMIN') {
+                channels = [
+                    { id: 'company', label: 'With Admins' },
+                    { id: 'department', label: 'With Department' }
+                ];
+            } else if (role === 'DEPT_USER') {
+                channels = [
+                    { id: 'department', label: 'Discussion' }
+                ];
+            } else {
+                channels = [
+                    { id: 'employee', label: 'Support Official' }
+                ];
             }
 
             main.innerHTML = `
                 <div class="chat-header">
-                    <div>
-                        <div class="fw-bold">Support for Issue: ${c.title}</div>
-                        <div class="small text-muted">Chatting with System Administrators</div>
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <div>
+                            <div class="fw-bold">Discuss: ${c.title}</div>
+                            <div class="small text-muted">Status: ${c.status}</div>
+                        </div>
+                        <div class="channel-tabs">
+                            ${channels.map(ch => `
+                                <div class="channel-tab ${activeChannel === ch.id ? 'active' : ''}" onclick="switchChannel('${ch.id}')">
+                                    ${ch.label}
+                                </div>
+                            `).join('')}
+                        </div>
                     </div>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="loadComplaints(); renderChatMain();"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
                 </div>
-                <div class="chat-body" id="chat-messages">
+                <div class="chat-body" id="chat-messages" style="background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');">
                     ${messages.length === 0 ? `
                         <div class="empty-state">
                             <i class="bi bi-chat-dots mb-2" style="font-size: 2rem; opacity: 0.3;"></i>
-                            <p class="small">No messages yet. Send a message to get help.</p>
+                            <p class="small">No messages in this channel yet.</p>
                         </div>
                     ` : messages.map(m => {
                         const isMe = String(m.senderId) === String(session.id);
+                        const time = new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                        const role = (m.senderRole || 'User').replace('_',' ').toUpperCase();
+                        
                         return `
-                            <div class="msg ${isMe ? 'msg-sent' : 'msg-received'}">
-                                <div class="d-flex justify-content-between align-items-center mb-1 mb-1" style="gap:20px">
-                                    <span class="fw-bold" style="font-size:0.65rem">${isMe ? 'Me' : (m.senderName || 'Admin')}</span>
-                                    <span style="font-size:0.55rem; opacity:0.7">${new Date(m.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                            <div class="msg-bubble ${isMe ? 'me' : 'other'}">
+                                <div class="bubble-header">
+                                    <span class="sender-name">
+                                        ${isMe ? 'Me' : `${m.senderName} <span style="font-size:0.6rem; opacity:0.6; font-weight:normal; margin-left:4px">${role}</span>`}
+                                    </span>
+                                    <span class="bubble-time">
+                                        ${time}
+                                        ${isMe ? (m.read ? '<span class="ms-1" style="color:#4ade80">✓✓</span>' : '<span class="ms-1" style="color:rgba(255,255,255,0.6)">✓</span>') : ''}
+                                    </span>
                                 </div>
-                                <div style="word-break: break-word;">${m.message}</div>
+                                <div class="msg-text">${m.text || m.message}</div>
                             </div>
                         `;
                     }).join('')}
                 </div>
-                <div class="chat-input-area">
-                    <input type="text" class="chat-input" id="msg-input" placeholder="Ask a question or provide more info..." onkeypress="if(event.key==='Enter') sendMsg()">
-                    <button class="btn-send" onclick="sendMsg()"><i class="bi bi-send-fill"></i></button>
+                <div class="chat-footer p-3 bg-white border-top">
+                    <div class="d-flex gap-2">
+                        <input type="text" class="form-control border-0 bg-light px-4" style="border-radius:24px; height:45px" id="msg-input" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMsg()">
+                        <button class="btn btn-primary d-flex align-items-center justify-content-center" style="width:45px; height:45px; border-radius:50%; background:#2563eb; border:none; flex-shrink:0" onclick="sendMsg()">
+                            <i class="bi bi-send-fill" style="transform:translateX(2px)"></i>
+                        </button>
+                    </div>
                 </div>
             `;
             const body = document.getElementById('chat-messages');
-            body.scrollTop = body.scrollHeight;
+            if (body) body.scrollTop = body.scrollHeight;
         }
 
         async function sendMsg() {
@@ -198,7 +349,7 @@
             const text = input.value.trim();
             if (!text || !activeChat) return;
 
-            const ok = await CMS.sendMessage(activeChat.id, 'employee', session.role, text, session.fullName);
+            const ok = await CMS.sendMessage(activeChat.id, activeChannel, session.role, text, session.fullName);
             if (ok) {
                 input.value = '';
                 await renderChatMain();

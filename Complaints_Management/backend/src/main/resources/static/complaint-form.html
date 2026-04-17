@@ -122,6 +122,10 @@
     });
 
     function goBack() {
+        if (editId) {
+            window.location.href = `complaint-view.html?id=${editId}`;
+            return;
+        }
         if (role === 'EMPLOYEE') window.location.href = 'employee-dashboard.html';
         else if (role === 'ADMIN') window.location.href = 'admin-dashboard.html';
         else if (role === 'SUPER_ADMIN') window.location.href = 'super-admin-dashboard.html';
@@ -284,7 +288,7 @@
         } else {
             const s = document.getElementById('companySelect');
             companyId = s.value;
-            companyName = s.options[s.selectedIndex].text;
+            companyName = s.selectedIndex !== -1 ? s.options[s.selectedIndex].text : "";
         }
 
         // Validation

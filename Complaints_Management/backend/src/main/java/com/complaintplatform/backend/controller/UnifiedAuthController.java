@@ -35,6 +35,7 @@ public class UnifiedAuthController {
         String nic = request.get("nic");
         String employeeId = request.get("employeeId");
         String companyName = request.get("companyName");
+        String registrationNumber = request.get("registrationNumber");
         
         if (userRepository.findByUsername(username).isPresent()) {
             return ResponseEntity.status(400).body(Map.of("message", "Username already exists."));
@@ -65,9 +66,10 @@ public class UnifiedAuthController {
         user.setNic(nic);
         user.setEmployeeId(employeeId);
         user.setCompanyName(companyName);
+        user.setRegistrationNumber(registrationNumber);
         
-        // Find company ID if possible
-        if (companyName != null) {
+        // Find company ID if possible (only for roles that link to existing companies, like EMPLOYEE)
+        if (companyName != null && role == User.Role.EMPLOYEE) {
             companyRepository.findAll().stream()
                 .filter(c -> c.getName().equalsIgnoreCase(companyName))
                 .findFirst()

@@ -3,71 +3,414 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Company Admin - CMS</title>
+    <title>Company Admin Dashboard - CMS</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="assets/styles.css">
+    <style>
+        .nav-link-item { cursor: pointer; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .status-badge { padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .badge-viewed { background: #e0f2fe; color: #075985; }
+        .badge-forwarded { background: #f3e8ff; color: #6b21a8; }
+        .badge-inprogress { background: #dcfce7; color: #166534; }
+        .badge-resolved { background: #ecfdf5; color: #065f46; }
+    </style>
 </head>
 <body class="bg-light">
 
 <nav class="sidebar">
-    <div class="sidebar-brand">Company Admin</div>
+    <div class="sidebar-brand">
+        <div class="brand-icon" style="background:var(--clr-primary)"><i class="bi bi-building"></i></div>
+        <span>Company Admin</span>
+    </div>
     <div class="sidebar-nav">
-        <a class="nav-link-item active" href="company-admin-dashboard.html"><i class="bi bi-building"></i> Overview</a>
-        <a class="nav-link-item" href="login.html" onclick="sessionStorage.clear()" style="color:var(--clr-danger)"><i class="bi bi-box-arrow-right"></i> Logout</a>
+        <div class="nav-section-label">Management</div>
+        <a class="nav-link-item active" onclick="showTab('overview')"><i class="bi bi-speedometer2"></i> Overview</a>
+        <a class="nav-link-item" onclick="showTab('departments')"><i class="bi bi-diagram-3"></i> Departments</a>
+        <a class="nav-link-item" onclick="showTab('resolutions')"><i class="bi bi-check-all"></i> Resolutions</a>
+        <a class="nav-link-item" href="communication.html"><i class="bi bi-chat-dots"></i> Communication</a>
+        
+        <div class="nav-section-label">Account</div>
+        <a class="nav-link-item" onclick="showTab('profile')"><i class="bi bi-person-circle"></i> Profile Settings</a>
+        <a class="nav-link-item text-danger" href="login.html" onclick="sessionStorage.clear()"><i class="bi bi-box-arrow-right"></i> Logout</a>
     </div>
 </nav>
 
-<div class="main-wrapper" style="margin-left: 260px; padding: 2rem;">
-    <div class="header mb-4">
-        <h2 id="companyHeader">Organization Dashboard</h2>
-        <p class="text-muted">Manage complaints forwarded to your organization.</p>
+<div class="main-wrapper" style="margin-left: 260px; padding: 24px;">
+    <!-- Overview Tab -->
+    <div id="tab-overview" class="tab-content active">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-1" id="companyNameHeader">Organization Dashboard</h2>
+                <p class="text-muted small">Manage and forward complaints to departments.</p>
+            </div>
+            <button class="btn btn-white border shadow-sm" onclick="loadComplaints()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
+
+        <div class="cms-card p-0 overflow-hidden">
+            <div class="p-3 border-bottom bg-white d-flex justify-content-between align-items-center">
+                <span class="fw-bold">Incoming Complaints</span>
+                <span class="badge bg-light text-dark fw-bold" id="complaintCount">0 cases</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Case ID</th>
+                            <th>Complaint Title</th>
+                            <th>Status</th>
+                            <th>Assigned Dept</th>
+                            <th>Date Received</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="complaintTable">
+                        <tr><td colspan="6" class="text-center py-5">Loading cases...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
-    <div class="cms-card">
-        <table class="table table-hover">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Complaint Title</th>
-                    <th>Type</th>
-                    <th>Current Status</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="companyTable">
-                <tr><td colspan="5" class="text-center">Loading cases...</td></tr>
-            </tbody>
-        </table>
+    <!-- Departments Tab -->
+    <div id="tab-departments" class="tab-content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-1">Departments</h2>
+                <p class="text-muted small">Manage organizational units and portal access.</p>
+            </div>
+            <button class="btn btn-primary" onclick="openAddDeptModal()">
+                <i class="bi bi-plus-lg"></i> Add New Department
+            </button>
+        </div>
+
+        <div class="cms-card p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Dept ID</th>
+                            <th>Name</th>
+                            <th>Username</th>
+                            <th>Description</th>
+                            <th class="text-end">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deptTable">
+                        <tr><td colspan="5" class="text-center py-5">Loading departments...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <!-- Resolutions Tab -->
+    <div id="tab-resolutions" class="tab-content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-1">Incoming Resolutions</h2>
+                <p class="text-muted small">Review fixes submitted by departments.</p>
+            </div>
+        </div>
+        <div class="cms-card p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Case ID</th>
+                            <th>Resolution Title</th>
+                            <th>Submitted From</th>
+                            <th>Date</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resolutionTable">
+                        <tr><td colspan="5" class="text-center py-5">Loading resolutions...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Tab -->
+    <div id="tab-profile" class="tab-content">
+        <h2 class="fw-bold mb-4">Profile Settings</h2>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="cms-card">
+                    <form id="profileForm" onsubmit="updateProfile(event)">
+                        <div class="mb-3">
+                            <label class="cms-label">Full Name</label>
+                            <input type="text" id="profileName" class="cms-input" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="cms-label">Username</label>
+                            <input type="text" id="profileUsername" class="cms-input" disabled>
+                        </div>
+                        <div class="mb-4">
+                            <label class="cms-label">New Password (leave blank to keep current)</label>
+                            <input type="password" id="profilePassword" class="cms-input" placeholder="Min 6 characters">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 py-2">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Dept Modal -->
+<div class="modal fade" id="addDeptModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="border-radius:16px; border:none;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold">Create New Department</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form onsubmit="saveDepartment(event)">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="cms-label">Dept Name</label>
+                            <input type="text" id="deptName" class="cms-input" placeholder="e.g. Technical Support" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="cms-label">Dept ID</label>
+                            <input type="text" id="deptId" class="cms-input" placeholder="e.g. TS-001" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="cms-label">Description</label>
+                            <textarea id="deptDesc" class="cms-textarea" rows="2" placeholder="Brief role of the department"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="cms-label">Portal Username</label>
+                            <input type="text" id="deptUser" class="cms-input" placeholder="Login username" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="cms-label">Portal Password</label>
+                            <input type="password" id="deptPass" class="cms-input" placeholder="Login password" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Department</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Forward Modal -->
+<div class="modal fade" id="forwardModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="border-radius:16px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="fw-bold">Forward Case to Department</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="forwardCaseId">
+                <p class="text-muted small">Select the department that should handle this resolution.</p>
+                <div class="mb-3">
+                    <label class="cms-label">Select Department</label>
+                    <select id="forwardDeptSelect" class="cms-input">
+                        <option value="">Loading departments...</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmForward()">Forward Case</button>
+            </div>
+        </div>
     </div>
 </div>
 
 <script src="assets/data-store.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const session = CMS.requireAuth(['company_admin']);
+    let currentCase = null;
+    let departments = [];
 
     document.addEventListener("DOMContentLoaded", () => {
-        document.getElementById('companyHeader').innerText = session.companyName || 'Organization Dashboard';
-        loadCompanyComplaints();
+        document.getElementById('companyNameHeader').innerText = session.companyName;
+        document.getElementById('profileName').value = session.fullName;
+        document.getElementById('profileUsername').value = session.username;
+        loadComplaints();
+        loadDepartments();
     });
 
-    async function loadCompanyComplaints() {
+    function showTab(id) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.nav-link-item').forEach(l => l.classList.remove('active'));
+        document.getElementById(`tab-${id}`).classList.add('active');
+        event.currentTarget.classList.add('active');
+        if (id === 'resolutions') loadAllResolutions();
+    }
+
+    async function loadComplaints() {
         const res = await fetch(`/api/complaints?userId=${session.id}`);
         const data = await res.json();
-        const tbody = document.getElementById('companyTable');
-        tbody.innerHTML = data.length ? '' : '<tr><td colspan="5" class="text-center text-muted">No complaints forwarded yet.</td></tr>';
+        const tbody = document.getElementById('complaintTable');
+        document.getElementById('complaintCount').innerText = `${data.length} cases`;
+        
+        if (!data.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">No cases found.</td></tr>';
+            return;
+        }
 
-        data.forEach(c => {
-             tbody.innerHTML += `
+        tbody.innerHTML = data.map(c => {
+            return `
                 <tr>
-                    <td>#${c.id}</td>
-                    <td>${c.title}</td>
-                    <td>${c.complainantType}</td>
-                    <td><span class="badge" style="background:#0d6efd">${c.status}</span></td>
-                    <td><button class="btn btn-sm btn-outline-primary">Process</button></td>
+                    <td><span class="fw-bold text-primary">CMP-${String(c.id).padStart(3, '0')}</span></td>
+                    <td><div class="fw-semibold">${c.title}</div><small class="text-muted">${c.complainantType}</small></td>
+                    <td>${CMS.statusBadge(c.status)}</td>
+                    <td>${c.department || '<span class="text-muted">Not forwarded</span>'}</td>
+                    <td class="small text-muted">${CMS.fmtDate(c.createdAt)}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewComplaint(${c.id})">View</button>
+                        ${c.status !== 'RESOLVED' && c.status !== 'FORWARDED' ? `<button class="btn btn-sm btn-primary ms-1" onclick="openForwardModal(${c.id})">Forward</button>` : ''}
+                    </td>
                 </tr>
             `;
+        }).join('');
+    }
+
+    async function viewComplaint(id) {
+        // Redirect to detail page (which also marks as VIEWED)
+        window.location.href = `company-complaint-detail.html?id=${id}`;
+    }
+
+    async function loadAllResolutions() {
+        const res = await fetch(`/api/complaints?userId=${session.id}`);
+        const complaints = await res.json();
+        const tbody = document.getElementById('resolutionTable');
+        const resolving = complaints.filter(c => c.status === 'RESOLUTION_SENT');
+        if (!resolving.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5 text-muted">No pending resolutions to review.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = resolving.map(c => `
+            <tr>
+                <td><span class="fw-bold text-primary">CMP-${String(c.id).padStart(3, '0')}</span></td>
+                <td><div class="fw-semibold">${c.title}</div></td>
+                <td><span class="badge bg-light text-dark">${c.department || 'Department'}</span></td>
+                <td class="small text-muted">Awaiting Review</td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-primary" onclick="viewComplaint(${c.id})">Review Resolution</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function loadDepartments() {
+        const res = await fetch(`/api/departments/users?companyId=${session.companyId}`);
+        departments = await res.json();
+        const tbody = document.getElementById('deptTable');
+        
+        if (!departments.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5 text-muted">No departments created.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = departments.map(d => `
+            <tr>
+                <td><code class="text-dark">${d.id}</code></td>
+                <td class="fw-bold">${d.department}</td>
+                <td>@${d.username}</td>
+                <td class="small text-muted">Portal Access Active</td>
+                <td class="text-end"><span class="badge bg-success">ACTIVE</span></td>
+            </tr>
+        `).join('');
+
+        const select = document.getElementById('forwardDeptSelect');
+        select.innerHTML = '<option value="">Select Department</option>' + 
+            departments.map(d => `<option value="${d.id}" data-name="${d.department}">${d.department}</option>`).join('');
+    }
+
+    function openAddDeptModal() {
+        new bootstrap.Modal(document.getElementById('addDeptModal')).show();
+    }
+
+    async function saveDepartment(e) {
+        e.preventDefault();
+        const payload = {
+            name: document.getElementById('deptName').value,
+            deptId: document.getElementById('deptId').value,
+            description: document.getElementById('deptDesc').value,
+            username: document.getElementById('deptUser').value,
+            password: document.getElementById('deptPass').value,
+            companyId: session.companyId,
+            companyName: session.companyName
+        };
+
+        const res = await fetch('/api/departments', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
         });
+
+        if (res.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('addDeptModal')).hide();
+            loadDepartments();
+            e.target.reset();
+        } else {
+            const err = await res.json();
+            alert(err.message || 'Error creating department');
+        }
+    }
+
+    function openForwardModal(id) {
+        document.getElementById('forwardCaseId').value = id;
+        new bootstrap.Modal(document.getElementById('forwardModal')).show();
+    }
+
+    async function confirmForward() {
+        const id = document.getElementById('forwardCaseId').value;
+        const select = document.getElementById('forwardDeptSelect');
+        const deptUserId = select.value;
+        const deptName = select.selectedIndex !== -1 ? select.options[select.selectedIndex].getAttribute('data-name') : "";
+
+        if (!deptUserId) return alert('Select a department');
+
+        const res = await fetch(`/api/complaints/${id}/forward-to-dept?userId=${session.id}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ deptUserId, deptName })
+        });
+
+        if (res.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('forwardModal')).hide();
+            loadComplaints();
+        }
+    }
+
+    async function updateProfile(e) {
+        e.preventDefault();
+        const payload = {
+            id: session.id,
+            fullName: document.getElementById('profileName').value,
+            password: document.getElementById('profilePassword').value
+        };
+
+        const res = await fetch('/api/auth/profile/update', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            session.fullName = data.fullName;
+            sessionStorage.setItem('cms_session', JSON.stringify(session));
+            alert('Profile updated successfully');
+        }
     }
 </script>
 </body>

@@ -106,7 +106,9 @@
         .badge-approved { background: #dcfce7; color: #166534; }
         .badge-rejected { background: #fee2e2; color: #991b1b; }
         .badge-viewed { background: #e0f2fe; color: #075985; }
-        .badge-inprogress { background: #f3e8ff; color: #6b21a8; }
+        .badge-forwarded { background: #f3e8ff; color: #6b21a8; }
+        .badge-inprogress { background: #fff7ed; color: #9a3412; }
+        .badge-resolutionsent { background: #e0e7ff; color: #3730a3; }
         .badge-resolved { background: #ecfdf5; color: #065f46; }
         .badge-resolutionrejected { background: #fff1f2; color: #e11d48; }
 
@@ -246,6 +248,13 @@
             <a href="super-admin-dashboard.html" class="nav-link active"><i class="bi bi-speedometer2"></i> Dashboard</a>
             <a href="super-admin-communication.html" class="nav-link"><i class="bi bi-chat-dots"></i> Communication</a>
             <a href="super-admin-profile.html" class="nav-link"><i class="bi bi-person-circle"></i> Profile</a>
+            
+            <hr class="mx-3 my-2" style="opacity: 0.1; color: #fff;">
+            
+            <a href="#" class="nav-link" id="nav-company-approval" onclick="setView('COMPANY_APPROVAL')"><i class="bi bi-building-check"></i> Company Approval</a>
+            <a href="#" class="nav-link" id="nav-admin-approval" onclick="setView('ADMIN_APPROVAL')"><i class="bi bi-person-lock"></i> Admin Approval</a>
+            <a href="#" class="nav-link" id="nav-announcements" onclick="setView('ANNOUNCEMENTS')"><i class="bi bi-megaphone"></i> Announcements</a>
+
             <div class="mt-auto p-4 position-absolute bottom-0 w-100">
                 <a href="login.html" onclick="CMS.logout()" class="nav-link text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
             </div>
@@ -291,8 +300,8 @@
         </div>
 
         <div class="view-toggle">
-            <button class="toggle-btn active" id="btn-customer-view" onclick="setView('CUSTOMER')">Customer</button>
-            <button class="toggle-btn" id="btn-employee-view" onclick="setView('EMPLOYEE')">Employee</button>
+            <button class="toggle-btn active" id="btn-customer-view" onclick="setView('CUSTOMER')">Customer Complaints</button>
+            <button class="toggle-btn" id="btn-employee-view" onclick="setView('EMPLOYEE')">Employee Complaints</button>
         </div>
 
         <!-- Filters Row -->
@@ -328,7 +337,7 @@
             </div>
             <div class="table-responsive">
                 <table class="complaint-table">
-                    <thead>
+                    <thead id="complaint-thead">
                         <tr>
                             <th>ID</th>
                             <th>Complaint Title</th>
@@ -406,8 +415,11 @@
         let complaints = [];
         let admins = [];
         let notifications = [];
+        let announcements = [];
+        let announcementMode = 'LIST'; // 'LIST' or 'FORM'
         let session = CMS.requireAuth(['super_admin']);
         let activeAssignId = null;
+        let categoryUsers = [];
 
         document.addEventListener('DOMContentLoaded', async () => {
             if(!session) return;
@@ -417,6 +429,7 @@
             // Load data before setting view to ensure complaints array is populated
             await loadData();
             await loadNotifications();
+            CMS.pollUnreadCounts();
             setView('CUSTOMER'); 
 
             // Auto-refresh every 30 seconds
@@ -450,12 +463,16 @@
                 const refreshedComplaints = await CMS.fetchLiveComplaints();
                 const refreshedAdmins = await CMS.fetchLiveAdmins();
                 
-                // Update and re-render
-                complaints = refreshedComplaints;
-                admins = refreshedAdmins;
-                populateAdminSelect();
-                renderCurrentTable();
-            } catch (err) {
+        // Update and re-render
+        complaints = refreshedComplaints;
+        admins = refreshedAdmins;
+        populateAdminSelect();
+        
+        // Prevent refresh from clearing the announcement form while typing
+        if (currentView === 'ANNOUNCEMENTS' && announcementMode === 'FORM') return;
+        
+        renderCurrentTable();
+    } catch (err) {
                 console.error("Data loading failed", err);
             }
         }
@@ -479,13 +496,235 @@
 
         function setView(view) {
             currentView = view;
-            document.getElementById('btn-customer-view').classList.toggle('active', view === 'CUSTOMER');
-            document.getElementById('btn-employee-view').classList.toggle('active', view === 'EMPLOYEE');
-            document.getElementById('table-title').textContent = view === 'CUSTOMER' ? 'Customer Complaints' : 'Employee Complaints';
+            
+            // Toggle main dashboard buttons (if they exist)
+            const btnCust = document.getElementById('btn-customer-view');
+            const btnEmp = document.getElementById('btn-employee-view');
+            if(btnCust) btnCust.classList.toggle('active', view === 'CUSTOMER');
+            if(btnEmp) btnEmp.classList.toggle('active', view === 'EMPLOYEE');
+            
+            // Toggle sidebar links
+            const navComp = document.getElementById('nav-company-approval');
+            const navAdmin = document.getElementById('nav-admin-approval');
+            const navAnn = document.getElementById('nav-announcements');
+            const navDash = document.querySelector('.sa-sidebar .nav-link:first-child');
+            
+            if(navComp) navComp.classList.toggle('active', view === 'COMPANY_APPROVAL');
+            if(navAdmin) navAdmin.classList.toggle('active', view === 'ADMIN_APPROVAL');
+            if(navAnn) {
+                navAnn.classList.toggle('active', view === 'ANNOUNCEMENTS');
+                announcementMode = 'LIST'; // Reset to list view when tab is clicked
+            }
+            
+            // Set dashboard as active only if viewing complaints
+            if(navDash) navDash.classList.toggle('active', view === 'CUSTOMER' || view === 'EMPLOYEE');
+            
+            const titleEl = document.getElementById('table-title');
+            if (view === 'CUSTOMER') titleEl.textContent = 'Customer Complaints';
+            else if (view === 'EMPLOYEE') titleEl.textContent = 'Employee Complaints';
+            else if (view === 'COMPANY_APPROVAL') titleEl.textContent = 'Company Registration Requests';
+            else if (view === 'ADMIN_APPROVAL') titleEl.textContent = 'Admin Registration Requests';
+            else if (view === 'ANNOUNCEMENTS') titleEl.textContent = 'System Announcements';
+            
             renderCurrentTable();
         }
 
-        function renderCurrentTable() {
+        async function renderAnnouncementsList() {
+            const card = document.querySelector('.complaint-table-card');
+            card.innerHTML = `
+                <div class="p-4 bg-white">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="fw-bold mb-0" style="color:var(--clr-sa-primary)">All Announcements</h4>
+                        <button class="btn btn-danger px-4 py-2 fw-bold" style="background:var(--clr-sa-primary); border:none; border-radius:10px;" onclick="setAnnouncementMode('FORM')">
+                            <i class="bi bi-plus-lg me-2"></i>New Announcement
+                        </button>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="complaint-table">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Message Preview</th>
+                                    <th>Date & Time</th>
+                                    <th>Sent To</th>
+                                    <th>Recipients</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ann-list-tbody">
+                                <tr><td colspan="5" class="text-center py-4"><i class="bi bi-arrow-clockwise bi-spin"></i> Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+
+            try {
+                const resp = await fetch('/api/superadmin/announcements');
+                if (!resp.ok) throw new Error("Load failed");
+                announcements = await resp.json();
+                
+                const tbody = document.getElementById('ann-list-tbody');
+                if (announcements.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5 text-muted">No announcements found.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = announcements.map(a => {
+                    const dt = new Date(a.createdAt);
+                    return `
+                        <tr>
+                            <td><div class="fw-bold">${a.title}</div></td>
+                            <td><div class="text-truncate" style="max-width:300px">${a.message}</div></td>
+                            <td>
+                                <div class="small fw-semibold">${dt.toLocaleDateString()}</div>
+                                <div class="text-muted" style="font-size:0.7rem">${dt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                            </td>
+                            <td><span class="badge bg-light text-dark text-capitalize">${a.targetAudience}</span></td>
+                            <td><span class="badge bg-light text-primary">${a.recipientsCount} users</span></td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error("Announcements load failed", e);
+            }
+        }
+
+        function setAnnouncementMode(mode) {
+            announcementMode = mode;
+            renderCurrentTable();
+        }
+
+        async function renderCurrentTable() {
+            if (currentView === 'ANNOUNCEMENTS') {
+                if (announcementMode === 'LIST') {
+                    renderAnnouncementsList();
+                    return;
+                }
+                const card = document.querySelector('.complaint-table-card');
+                card.innerHTML = `
+                    <div class="p-4 bg-white">
+                        <div class="d-flex align-items-center mb-4 gap-3">
+                            <button class="btn btn-white border px-3" onclick="setAnnouncementMode('LIST')" style="border-radius:10px;"><i class="bi bi-arrow-left"></i></button>
+                            <h4 class="fw-bold mb-0" style="color:var(--clr-sa-primary)">Broadcast New Announcement</h4>
+                        </div>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">1. Select Category</label>
+                                <select id="ann-category" class="form-select shadow-none" style="border-radius:10px; padding:12px;" onchange="loadCategoryUsers()">
+                                    <option value="all">All Roles</option>
+                                    <option value="customer">Customers</option>
+                                    <option value="employee">Employees</option>
+                                    <option value="admin">Admins</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold small">2. Select Recipients</label>
+                                <div id="user-selector-container" class="border rounded p-3" style="max-height: 250px; overflow-y: auto; background: #f8fafc; border-radius:12px !important;">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="check-all-users" onchange="toggleAllUsers(this.checked)">
+                                        <label class="form-check-label fw-bold small" for="check-all-users">Select All in This Category</label>
+                                    </div>
+                                    <hr class="my-2">
+                                    <div id="user-list-checkboxes">
+                                        <p class="text-muted small p-2">Loading users...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold small">3. Announcement Title</label>
+                                <input type="text" id="ann-title" class="form-control shadow-none" placeholder="Enter headline..." style="border-radius:10px; padding:12px;">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold small">4. Description</label>
+                                <textarea id="ann-desc" class="form-control shadow-none" rows="4" placeholder="Type the message details..." style="border-radius:10px; padding:12px;"></textarea>
+                            </div>
+                            <div class="col-12 text-end">
+                                <button class="btn btn-danger px-5 py-3 fw-bold shadow-sm" style="background:var(--clr-sa-primary); border:none; border-radius:12px; font-size:1rem" onclick="sendAnnouncement()">
+                                    <i class="bi bi-send-fill me-2"></i> Send Announcement
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                loadCategoryUsers();
+                return;
+            }
+
+            const tableHead = document.getElementById('complaint-thead');
+            const tbody = document.getElementById('complaint-tbody');
+            const rowCountEl = document.getElementById('row-count');
+
+            if (currentView === 'COMPANY_APPROVAL' || currentView === 'ADMIN_APPROVAL') {
+                // Render Requests Table
+                tableHead.innerHTML = `
+                    <tr>
+                        <th>Name</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        ${currentView === 'COMPANY_APPROVAL' ? '<th>Company Name</th><th>Reg Number</th>' : ''}
+                        <th>NIC</th>
+                        <th>Status</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                `;
+
+                try {
+                    const resp = await fetch('/api/admin/requests?status=PENDING');
+                    const allReqs = await resp.json();
+                    const filtered = allReqs.filter(r => 
+                        currentView === 'COMPANY_APPROVAL' ? r.role === 'COMPANY_ADMIN' : r.role === 'ADMIN'
+                    );
+
+                    rowCountEl.textContent = `${filtered.length} items`;
+
+                    if (filtered.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-5 text-muted">No pending ${currentView === 'COMPANY_APPROVAL' ? 'company' : 'admin'} requests.</td></tr>`;
+                        return;
+                    }
+
+                    tbody.innerHTML = filtered.map(r => `
+                        <tr>
+                            <td><div class="fw-bold">${r.name}</div></td>
+                            <td><code>${r.username}</code></td>
+                            <td>${r.email}</td>
+                            ${currentView === 'COMPANY_APPROVAL' ? `<td>${r.companyName}</td><td>${r.registrationNumber}</td>` : ''}
+                            <td>${r.nic}</td>
+                            <td><span class="status-badge badge-pending">PENDING</span></td>
+                            <td class="text-center">
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <button class="btn btn-sm btn-success" title="Approve" onclick="approveUser(${r.id}, '${r.name}')">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" title="Reject" onclick="rejectUser(${r.id}, '${r.name}')">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('');
+                } catch (e) {
+                    console.error("Failed to fetch requests", e);
+                    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error loading data.</td></tr>`;
+                }
+                return;
+            }
+
+            // Original Complaint Table Logic
+            tableHead.innerHTML = `
+                <tr>
+                    <th>ID</th>
+                    <th>Complaint Title</th>
+                    <th>Raised By</th>
+                    <th>Company</th>
+                    <th>Status</th>
+                    <th>Assigned Admin</th>
+                    <th>Department</th>
+                    <th>Created Date</th>
+                    <th class="text-center">Action</th>
+                </tr>
+            `;
+
             if (!complaints) {
                 console.error("RENDER: Complaints array is null/undefined.");
                 return;
@@ -499,11 +738,9 @@
                 const type = (c.complainantType || "").toUpperCase();
                 return type === currentView;
             });
-            console.log(`RENDER: Step 1 (Type Filter) -> Count=${filtered.length}`);
-
+            
             if (statusFilter !== 'ALL') {
                 filtered = filtered.filter(c => (c.status || "").toUpperCase() === statusFilter.toUpperCase());
-                console.log(`RENDER: Step 2 (Status Filter: ${statusFilter}) -> Count=${filtered.length}`);
             }
 
             if (searchQuery) {
@@ -513,12 +750,10 @@
                     String(c.id).includes(searchQuery) ||
                     (c.companyName && c.companyName.toLowerCase().includes(searchQuery))
                 );
-                console.log(`RENDER: Step 3 (Search Filter: "${searchQuery}") -> Count=${filtered.length}`);
             }
 
-            document.getElementById('row-count').textContent = `${filtered.length} items`;
+            rowCountEl.textContent = `${filtered.length} items`;
 
-            const tbody = document.getElementById('complaint-tbody');
             if (filtered.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="9" class="text-center py-5 text-muted">No ${currentView.toLowerCase()} complaints found matching the criteria.</td></tr>`;
                 return;
@@ -526,16 +761,13 @@
 
             tbody.innerHTML = filtered.map(c => {
                 const adminName = getAdminName(c.assignedAdminId);
-                const statusStr = c.status || 'PENDING';
-                const statusCls = statusStr.toLowerCase().replace(/_/g, '');
-                
                 return `
                     <tr>
                         <td><span class="fw-bold text-primary">CMP-${String(c.id).padStart(3,'0')}</span></td>
                         <td><div class="fw-semibold text-dark">${c.title}</div></td>
                         <td>${c.complainantName}</td>
                         <td class="small text-muted">${c.companyName}</td>
-                        <td><span class="status-badge badge-${statusCls}">${statusStr}</span></td>
+                        <td>${CMS.statusBadge(c.status)}</td>
                         <td>
                             ${adminName ? `<span>${adminName}</span>` : `<span class="text-muted fw-semibold">Not assigned</span>`}
                         </td>
@@ -552,6 +784,123 @@
                     </tr>
                 `;
             }).join('');
+        }
+
+        async function loadCategoryUsers() {
+            const cat = document.getElementById('ann-category').value;
+            const listEl = document.getElementById('user-list-checkboxes');
+            listEl.innerHTML = '<div class="text-center py-2"><i class="bi bi-arrow-clockwise bi-spin"></i> Loading...</div>';
+            
+            try {
+                const resp = await fetch(`/api/superadmin/users?category=${cat}`);
+                if (!resp.ok) throw new Error("Server error");
+                categoryUsers = await resp.json();
+                
+                if (categoryUsers.length === 0) {
+                    listEl.innerHTML = '<p class="text-muted small p-2">No users found in this category.</p>';
+                    return;
+                }
+
+                listEl.innerHTML = categoryUsers.map(u => `
+                    <div class="form-check mb-1">
+                        <input class="form-check-input user-check" type="checkbox" value="${u.id}" id="user-${u.id}">
+                        <label class="form-check-label small" for="user-${u.id}">
+                            ${u.fullName} <span class="text-muted" style="font-size:0.7rem">(${u.role.replace('_',' ')})</span>
+                        </label>
+                    </div>
+                `).join('');
+                document.getElementById('check-all-users').checked = false;
+            } catch (e) {
+                listEl.innerHTML = '<p class="text-danger small p-2">Failed to load users.</p>';
+            }
+        }
+
+        function toggleAllUsers(checked) {
+            document.querySelectorAll('.user-check').forEach(cb => cb.checked = checked);
+        }
+
+        async function sendAnnouncement() {
+            const title = document.getElementById('ann-title').value.trim();
+            const desc = document.getElementById('ann-desc').value.trim();
+            const isAll = document.getElementById('check-all-users').checked;
+            const category = document.getElementById('ann-category').value;
+            
+            const selectedIds = Array.from(document.querySelectorAll('.user-check:checked')).map(cb => parseInt(cb.value));
+            
+            if (!title || !desc) {
+                showToast("Please fill in title and description", "error");
+                return;
+            }
+            
+            if (!isAll && selectedIds.length === 0) {
+                showToast("Please select at least one recipient", "error");
+                return;
+            }
+
+            const btn = event.target;
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-arrow-clockwise bi-spin"></i> Sending...';
+
+            try {
+                const resp = await fetch('/api/superadmin/announcements', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        category: category,
+                        all: isAll,
+                        userIds: selectedIds,
+                        title: title,
+                        description: desc
+                    })
+                });
+
+                if (resp.ok) {
+                    showToast("send successfully", "success");
+                    setAnnouncementMode('LIST');
+                } else {
+                    showToast("Failed to send announcement", "error");
+                }
+            } catch (e) {
+                showToast("Network error", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        async function approveUser(id, name) {
+            if (!confirm(`Are you sure you want to approve ${name}?`)) return;
+            try {
+                const resp = await fetch(`/api/admin/requests/${id}/approve`, { method: 'POST' });
+                if (resp.ok) {
+                    showToast(`${name} approved successfully`, 'success');
+                    renderCurrentTable();
+                } else {
+                    showToast('Failed to approve user', 'error');
+                }
+            } catch (e) {
+                showToast('Network error', 'error');
+            }
+        }
+
+        async function rejectUser(id, name) {
+            if (!confirm(`Are you sure you want to reject ${name}?`)) return;
+            try {
+                const resp = await fetch(`/api/admin/requests/${id}/reject`, { 
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ reason: 'Rejected by Super Admin' })
+                });
+                if (resp.ok) {
+                    showToast(`${name} rejected`, 'info');
+                    renderCurrentTable();
+                } else {
+                    showToast('Failed to reject user', 'error');
+                }
+            } catch (e) {
+                showToast('Network error', 'error');
+            }
         }
 
         function getAdminName(id) {

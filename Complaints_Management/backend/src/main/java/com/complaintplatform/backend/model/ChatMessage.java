@@ -23,6 +23,9 @@ public class ChatMessage {
     @Column(nullable = false)
     private String senderRole;
 
+    @Column
+    private Long recipientId;
+
     @Column(nullable = false)
     private String channel;
 
@@ -39,6 +42,8 @@ public class ChatMessage {
     public void setId(Long id) { this.id = id; }
     public Long getComplaintId() { return complaintId; }
     public void setComplaintId(Long complaintId) { this.complaintId = complaintId; }
+    public Long getRecipientId() { return recipientId; }
+    public void setRecipientId(Long recipientId) { this.recipientId = recipientId; }
     public Long getSenderId() { return senderId; }
     public void setSenderId(Long senderId) { this.senderId = senderId; }
     public String getSenderName() { return senderName; }

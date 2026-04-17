@@ -146,18 +146,24 @@
             padding: 16px 24px;
             border-bottom: 1px solid #e2e8f0;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            height: 80px;
+            background: #fff;
         }
 
         .chat-body {
             flex: 1;
             overflow-y: auto;
             padding: 24px;
-            background: #f8fafc;
+            background: #e5ddd5;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 8px;
+        }
+
+        .chat-body.empty {
+            justify-content: center;
+            align-items: center;
         }
 
         .msg {
@@ -253,6 +259,98 @@
             background: rgba(255,255,255,0.5);
             color: #334155;
         }
+
+        /* WhatsApp Style Date Separators */
+        .chat-date-separator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .chat-date-separator::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 1px;
+            background: rgba(0,0,0,0.05);
+            z-index: 1;
+        }
+
+        .chat-date-separator span {
+            background: #e1f5fe;
+            color: #01579b;
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            position: relative;
+            z-index: 2;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .msg-bubble {
+            max-width: 80%;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 0.95rem;
+            position: relative;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            line-height: 1.5;
+            width: fit-content;
+            min-width: 160px;
+        }
+
+        .msg-bubble.me {
+            background: #2563eb;
+            color: #ffffff;
+            margin-left: auto;
+            border-bottom-right-radius: 4px;
+        }
+
+        .msg-bubble.other {
+            background: #ffffff;
+            color: #1e293b;
+            margin-right: auto;
+            border-bottom-left-radius: 4px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .bubble-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .msg-bubble.me .bubble-header {
+            border-bottom-color: rgba(255,255,255,0.15);
+        }
+
+        .sender-name {
+            font-size: 0.75rem;
+            font-weight: 800;
+        }
+
+        .bubble-time {
+            font-size: 0.7rem;
+            opacity: 0.8;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .msg-text {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -293,6 +391,7 @@
                     <div class="comm-tabs">
                         <button class="comm-tab-btn active" id="tab-customer" onclick="setTab('customer')">Customer</button>
                         <button class="comm-tab-btn" id="tab-employee" onclick="setTab('employee')">Employee</button>
+                        <button class="comm-tab-btn" id="tab-admin" onclick="setTab('admin')">Admins</button>
                     </div>
                 </div>
                 <div class="chat-list" id="chat-list">
@@ -323,6 +422,15 @@
             document.getElementById('sa-name').textContent = session.fullName;
             updateTopAvatar(session);
             await loadData();
+            
+            // Fetch counts immediately if not already polled
+            await CMS.pollUnreadCounts(); 
+            updateTabBadges();
+            renderChatList();
+        });
+
+        window.addEventListener('cms-unread-updated', () => {
+            updateTabBadges();
             renderChatList();
         });
 
@@ -344,9 +452,39 @@
             curTab = t;
             document.getElementById('tab-customer').classList.toggle('active', t === 'customer');
             document.getElementById('tab-employee').classList.toggle('active', t === 'employee');
+            document.getElementById('tab-admin').classList.toggle('active', t === 'admin');
             activeChat = null;
             renderEmptyState();
+            updateTabBadges();
             renderChatList();
+        }
+
+        function updateTabBadges() {
+            const counts = CMS._unreadCounts || {};
+            
+            // Calculate Customer Total
+            const customerTotal = complaints
+                .filter(c => (c.complainantType || "").toUpperCase() === 'CUSTOMER')
+                .reduce((sum, c) => sum + (CMS.getUnreadCount('cmp', c.id) || 0), 0);
+            
+            // Calculate Employee Total
+            const employeeTotal = complaints
+                .filter(c => (c.complainantType || "").toUpperCase() === 'EMPLOYEE')
+                .reduce((sum, c) => sum + (CMS.getUnreadCount('cmp', c.id) || 0), 0);
+            
+            // Admin Total (from private threads)
+            const adminTotal = counts.private || 0;
+
+            renderTabBadge('tab-customer', 'Customer', customerTotal);
+            renderTabBadge('tab-employee', 'Employee', employeeTotal);
+            renderTabBadge('tab-admin', 'Admins', adminTotal);
+        }
+
+        function renderTabBadge(id, label, count) {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            const dotHtml = count > 0 ? `<span class="dot-badge"></span>` : '';
+            btn.innerHTML = `${label}${dotHtml}`;
         }
 
         function setChannel(ch) {
@@ -359,35 +497,81 @@
             listEl.innerHTML = '';
 
             const type = curTab.toUpperCase();
-            let filtered = complaints.filter(c => c.status !== 'PENDING' && c.complainantType === type);
+            let items = [];
+            
+            if (type === 'ADMIN') {
+                items = admins.filter(a => String(a.id) !== String(session.id)).map(a => ({...a, type: 'admin'}));
+            } else {
+                items = complaints.filter(c => (c.complainantType || "").toUpperCase() === curTab.toUpperCase()).map(c => ({...c, type: 'complaint'}));
+            }
+            
+            // 1. Attach unread counts
+            items.forEach(item => {
+                const id = item.id;
+                item.unreadCount = item.type === 'admin' ? CMS.getUnreadCount('private', id) : CMS.getUnreadCount('cmp', id);
+            });
+            
+            // 2. Sort: Unread first, then by last activity (newest first)
+            items.sort((a,b) => {
+                const bCount = b.unreadCount || 0;
+                const aCount = a.unreadCount || 0;
+                if (bCount !== aCount) return bCount - aCount;
+                return new Date(b.lastActivity) - new Date(a.lastActivity);
+            });
 
-            if (filtered.length === 0) {
-                listEl.innerHTML = '<div class="text-center p-4 text-muted small">No active conversations</div>';
-                return;
+            // 3. Auto-select newest unread if none active
+            if (!activeChat && items.length > 0 && items[0].unreadCount > 0) {
+                const first = items[0];
+                if (first.type === 'admin') selectAdminChat(first);
+                else selectComplaintChat(first);
             }
 
-            filtered.forEach(c => {
+            items.forEach(item => {
                 const el = document.createElement('div');
-                el.className = `chat-item ${activeChat && activeChat.id === c.id ? 'active' : ''} d-block`;
-                el.onclick = () => selectComplaintChat(c);
+                const isActive = activeChat && activeChat.id === item.id && activeChat.type === item.type;
+                const isUnread = item.unreadCount > 0;
+                el.className = `chat-item ${isActive ? 'active' : ''} ${isUnread ? 'unread' : ''} d-block`;
                 
-                el.innerHTML = `
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="badge" style="font-size:0.6rem; background:#f1f5f9; color:#475569">CMP-${String(c.id).padStart(3,'0')}</span>
-                        <span class="badge" style="font-size:0.6rem; background:#f8fafc; border:1px solid #e2e8f0; color:#64748b">${c.status}</span>
-                    </div>
-                    <div class="fw-bold text-dark text-truncate" style="font-size:0.85rem">${c.complainantName}</div>
-                    <div class="text-muted text-truncate" style="font-size:0.75rem">${c.companyName}</div>
-                    <div class="mt-1 small text-muted text-truncate italic" style="font-size:0.7rem">
-                        ${c.title}
-                    </div>
-                `;
+                if (item.type === 'admin') {
+                    el.onclick = () => selectAdminChat(item);
+                    el.innerHTML = `
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="avatar small" style="width:36px; height:36px; background:var(--clr-sa-primary); color: #fff">${item.fullName[0]}</div>
+                            <div>
+                                <div class="fw-bold" style="font-size:0.85rem">${item.fullName}</div>
+                                <div class="text-muted small" style="font-size:0.7rem">${item.department || 'Administrator'}</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    el.onclick = () => selectComplaintChat(item);
+                    el.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="badge" style="font-size:0.6rem; background:#f1f5f9; color:#475569">CMP-${String(item.id).padStart(3,'0')}</span>
+                            <span class="badge" style="font-size:0.6rem; background:#f8fafc; border:1px solid #e2e8f0; color:#64748b">${item.status}</span>
+                        </div>
+                        <div class="fw-bold text-dark text-truncate" style="font-size:0.85rem">${item.complainantName}</div>
+                        <div class="text-muted text-truncate" style="font-size:0.75rem">${item.companyName}</div>
+                        <div class="mt-1 small text-muted text-truncate italic" style="font-size:0.7rem">
+                            ${item.title}
+                        </div>
+                    `;
+                }
                 listEl.appendChild(el);
             });
         }
 
+        window.setTab = setTab;
+
         function selectComplaintChat(comp) {
             activeChat = { type: 'complaint', data: comp, id: comp.id };
+            curChannel = 'employee';
+            renderChatMain();
+            renderChatList();
+        }
+
+        async function selectAdminChat(admin) {
+            activeChat = { type: 'admin', id: admin.id, name: admin.fullName };
             renderChatMain();
             renderChatList();
         }
@@ -401,118 +585,137 @@
             `;
         }
 
+        function formatChatDate(date) {
+            const today = new Date();
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            if (date.toDateString() === today.toDateString()) return 'Today';
+            if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+            
+            return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
         async function renderChatMain() {
             if (!activeChat) return;
             const main = document.getElementById('chat-main');
-            const data = activeChat.data;
             
             let messages = [];
-            const resp = await fetch(`/api/admin/complaints/${data.id}/chat?userId=${session.id}`);
-            if (resp.ok) {
-                const raw = await resp.json();
-                messages = raw
-                    .filter(m => m.channel === curChannel)
-                    .map(m => ({
-                        sender: String(m.senderId) === String(session.id) ? 'me' : 'other',
-                        senderName: m.senderName,
-                        text: m.message,
-                        role: m.senderRole || 'unknown',
-                        at: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    }));
-            }
+            const chatId = activeChat.type === 'admin' ? 0 : activeChat.data.id;
+            const recipientId = activeChat.type === 'admin' ? activeChat.id : null;
+            
+            CMS.markMessagesRead(chatId, curChannel, recipientId);
+            const raw = await CMS.fetchChat(chatId, recipientId);
+            messages = raw.filter(m => m.channel === curChannel);
 
-            const targetLabel = curChannel === 'company' ? 'Company' : (data.complainantType === 'CUSTOMER' ? 'Customer' : 'Employee');
+            let msgHtml = '';
+            let lastDate = '';
+
+            messages.forEach(m => {
+                const mDate = new Date(m.createdAt);
+                const dateHeader = formatChatDate(mDate);
+                
+                if (dateHeader !== lastDate) {
+                    msgHtml += `<div class="chat-date-separator"><span>${dateHeader}</span></div>`;
+                    lastDate = dateHeader;
+                }
+
+                const isMe = String(m.senderId) === String(session.id);
+                const role = (m.senderRole || 'unknown').toUpperCase();
+                const time = mDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                let senderColor = "#7c3aed";
+                if (!isMe) {
+                    if (curChannel === 'company') senderColor = "#1e293b";
+                    else if (curChannel === 'admins') senderColor = "#be123c";
+                    else senderColor = activeChat.data?.complainantType === 'CUSTOMER' ? '#166534' : '#075985';
+                }
+
+                msgHtml += `
+                    <div class="msg-bubble ${isMe ? 'me' : 'other'}">
+                        <div class="bubble-header">
+                            <span class="sender-name">
+                                ${isMe ? 'Me' : `${m.senderName} <span style="font-size:0.6rem; opacity:0.6; font-weight:normal; margin-left:4px">${role}</span>`}
+                            </span>
+                            <span class="bubble-time">
+                                ${time}
+                                ${isMe ? (m.read ? '<span class="ms-1" style="color:#4ade80">✓✓</span>' : '<span class="ms-1" style="color:rgba(255,255,255,0.6)">✓</span>') : ''}
+                            </span>
+                        </div>
+                        <div class="msg-text">${m.message}</div>
+                    </div>
+                `;
+            });
 
             main.innerHTML = `
                 <div class="chat-header">
                     ${activeChat.type === 'admin' ? `
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="avatar" style="background:var(--clr-sa-primary); color:#fff">${data.fullName[0]}</div>
+                        <div class="d-flex align-items-center gap-3 w-100">
+                            <div class="avatar" style="background:var(--clr-sa-primary); color:#fff">${activeChat.name[0]}</div>
                             <div>
-                                <div class="fw-bold">${data.fullName}</div>
-                                <div class="text-muted small">Administrator</div>
+                                <div class="fw-bold">${activeChat.name}</div>
+                                <div class="text-muted small">Global Administrative Hub</div>
                             </div>
                         </div>
                     ` : `
-                        <div class="w-100">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <div class="fw-bold fs-5">Chat with ${targetLabel}</div>
-                                    <div class="small text-muted">
-                                        <span class="fw-bold">CMP-${String(data.id).padStart(3,'0')}:</span> ${data.title}
-                                    </div>
-                                </div>
-                                <div class="sub-tabs border shadow-none" style="padding:2px">
-                                    <button class="sub-tab-btn ${curChannel === 'employee' ? 'active' : ''}" onclick="setChannel('employee')">
-                                        ${data.complainantType === 'CUSTOMER' ? 'Customer' : 'Employee'}
-                                    </button>
-                                    <button class="sub-tab-btn ${curChannel === 'company' ? 'active' : ''}" onclick="setChannel('company')">
-                                        Company
-                                    </button>
-                                </div>
+                        <div class="d-flex justify-content-between align-items-center w-100">
+                            <div class="d-flex flex-column">
+                                <span class="fw-bold fs-5" style="line-height:1.2">${activeChat.data.complainantName}</span>
+                                <span class="text-muted small">
+                                    <span class="fw-bold">CMP-${String(activeChat.data.id).padStart(3,'0')}:</span> ${activeChat.data.title}
+                                </span>
+                            </div>
+                            <div class="sub-tabs shadow-none border" style="padding:4px; background:#f8fafc; min-width:300px">
+                                <button class="sub-tab-btn ${curChannel === 'employee' ? 'active' : ''}" onclick="setChannel('employee')">
+                                    ${activeChat.data.complainantType === 'CUSTOMER' ? 'Customer' : 'Employee'}
+                                </button>
+                                <button class="sub-tab-btn ${curChannel === 'company' ? 'active' : ''}" onclick="setChannel('company')">
+                                    Company
+                                </button>
+                                <button class="sub-tab-btn ${curChannel === 'admins' ? 'active' : ''}" onclick="setChannel('admins')">
+                                    Internal
+                                </button>
                             </div>
                         </div>
                     `}
                 </div>
-                <div class="chat-body" id="chat-messages" style="background: #f1f5f9;">
+                
+                <div class="chat-body ${messages.length === 0 ? 'empty' : ''}" id="chat-messages" style="background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');">
                     ${messages.length === 0 ? `
-                        <div class="empty-state">
-                            <i class="bi bi-chat-dots-fill mb-2" style="font-size:2rem; opacity:0.3"></i>
-                            <div class="fw-bold small opacity-75">No messages in this ${targetLabel} thread yet</div>
-                            <div class="small opacity-50">Sent messages will appear here</div>
+                        <div class="text-center" style="opacity:0.4">
+                            <i class="bi bi-chat-dots" style="font-size: 4rem"></i>
+                            <p class="mt-2 fw-bold">No messages in this thread yet.</p>
                         </div>
-                    ` : messages.map(m => {
-                        const isMe = m.sender === 'me';
-                        const role = (m.role || "").toUpperCase();
-                        
-                        let roleLabel = "Super Admin";
-                        let roleColor = "#e11d48";
-                        
-                        if (!isMe) {
-                            if (curChannel === 'company') {
-                                roleLabel = "Company Representative";
-                                roleColor = "#1e293b";
-                            } else {
-                                roleLabel = data.complainantType === 'CUSTOMER' ? 'Customer' : 'Employee';
-                                roleColor = data.complainantType === 'CUSTOMER' ? '#166534' : '#075985';
-                            }
-                        }
-
-                        return `
-                            <div class="msg ${isMe ? 'msg-sent' : 'msg-received shadow-sm'}" style="${!isMe ? 'background: #fff; border: 1px solid #e2e8f0;' : ''}">
-                                <div class="d-flex justify-content-between align-items-center mb-1 gap-4">
-                                    <span class="fw-bold" style="font-size:0.65rem; color:${roleColor}">${roleLabel}</span>
-                                    <span style="font-size:0.55rem; opacity:0.6">${m.at}</span>
-                                </div>
-                                <div style="white-space: pre-wrap;">${m.text}</div>
-                            </div>
-                        `;
-                    }).join('')}
+                    ` : msgHtml}
                 </div>
-                <div class="chat-input-area bg-white">
-                    <input type="text" class="chat-input" id="msg-input" placeholder="Type a message to ${targetLabel}..." onkeypress="if(event.key==='Enter') sendMsg()">
-                    <button class="btn-send" onclick="sendMsg()"><i class="bi bi-send-fill"></i></button>
+
+                <div class="chat-footer bg-white border-top p-3">
+                    <div class="d-flex gap-2 align-items-center w-100">
+                        <div class="flex-grow-1">
+                            <input type="text" class="form-control border-0 shadow-none bg-light px-4" style="border-radius:24px; height:50px" id="msg-input" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMsg()">
+                        </div>
+                        <button class="btn btn-primary d-flex align-items-center justify-content-center" style="width:50px; height:50px; border-radius:50%; background:var(--clr-sa-primary); border:none; flex-shrink:0" onclick="sendMsg()">
+                            <i class="bi bi-send-fill" style="transform: translateX(2px)"></i>
+                        </button>
+                    </div>
                 </div>
             `;
-            const body = document.getElementById('chat-messages');
-            if(body) body.scrollTop = body.scrollHeight;
+            const container = document.getElementById('chat-messages');
+            if (container) container.scrollTop = container.scrollHeight;
         }
 
         async function sendMsg() {
             const input = document.getElementById('msg-input');
             const text = input.value.trim();
-            if (!text) return;
+            if (!text || !activeChat) return;
 
-            if (activeChat.type === 'complaint') {
-                const ok = await CMS.sendMessage(activeChat.data.id, curChannel, 'admin', text, session.fullName);
-                if (ok) {
-                    input.value = '';
-                    renderChatMain();
-                }
-            } else {
-                // Admin chat logic (simulated)
+            const chatId = activeChat.type === 'admin' ? 0 : activeChat.data.id;
+            const ok = await CMS.sendMessage(chatId, curChannel, 'admin', text, session.fullName);
+            if (ok) {
                 input.value = '';
                 renderChatMain();
+            } else {
+                alert("Could not send message.");
             }
         }
     </script>

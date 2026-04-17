@@ -211,7 +211,34 @@ public class ComplaintApiController {
             default:
                 complaints = complaintRepo.findByComplainantId(userId);
         }
-        return ResponseEntity.ok(complaints);
+        return ResponseEntity.ok(complaints.stream().map(c -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", c.getId());
+            map.put("title", c.getTitle());
+            map.put("description", c.getDescription());
+            map.put("category", c.getCategory());
+            map.put("complainantType", c.getComplainantType());
+            map.put("complainantId", c.getComplainantId());
+            map.put("complainantName", c.getComplainantName());
+            map.put("companyId", c.getCompanyId());
+            map.put("companyName", c.getCompanyName());
+            map.put("department", c.getDepartment());
+            map.put("createdAt", c.getCreatedAt());
+            map.put("submittedAt", c.getCreatedAt());
+            map.put("dueDate", c.getDueDate());
+            map.put("priority", c.getPriority());
+            
+            // Logic for visible status
+            String statusStr = c.getStatus().name();
+            if (c.getStatus() == Complaint.Status.FORWARDED) {
+                // If it was forwarded to a department already, other roles see it as IN_PROGRESS
+                if (c.getDepartmentUserId() != null && user.getRole() != User.Role.COMPANY_ADMIN) {
+                    statusStr = "IN_PROGRESS";
+                }
+            }
+            map.put("status", statusStr);
+            return map;
+        }).toList());
     }
 
     @GetMapping("/{id}")
@@ -227,9 +254,53 @@ public class ComplaintApiController {
                         if (!c.getCompanyId().equals(user.getCompanyId())) {
                              return ResponseEntity.status(403).body(Map.of("error", "Access denied for this company."));
                         }
+                        // Status Update: VIEWED
+                        if (c.getStatus() == Complaint.Status.APPROVED || c.getStatus() == Complaint.Status.FORWARDED) {
+                            c.setStatus(Complaint.Status.VIEWED);
+                            c.setViewedByCompanyAt(LocalDateTime.now());
+                            complaintRepo.save(c);
+                        }
+                    } else if (user.getRole() == User.Role.DEPT_USER) {
+                        if (c.getDepartmentUserId() == null || !c.getDepartmentUserId().equals(userId)) {
+                            return ResponseEntity.status(403).body(Map.of("error", "Access denied for this department."));
+                        }
+                        // Status Update: IN_PROGRESS
+                        if (c.getStatus() == Complaint.Status.VIEWED || c.getStatus() == Complaint.Status.FORWARDED) {
+                            c.setStatus(Complaint.Status.IN_PROGRESS);
+                            complaintRepo.save(c);
+                        }
                     }
-                    return ResponseEntity.ok(c);
+                    String statusStr = c.getStatus().name();
+                    if (c.getStatus() == Complaint.Status.FORWARDED) {
+                        if (c.getDepartmentUserId() != null && user.getRole() != User.Role.COMPANY_ADMIN) {
+                            statusStr = "IN_PROGRESS";
+                        }
+                    }
+                    
+                    Map<String, Object> map = new HashMap<>(); // Using HashMap to avoid modifying original Entity if possible, but simpler to just return a Map
+                    map.put("id", c.getId()); map.put("title", c.getTitle()); map.put("description", c.getDescription());
+                    map.put("category", c.getCategory()); map.put("complainantType", c.getComplainantType());
+                    map.put("status", statusStr); 
+                    map.put("createdAt", c.getCreatedAt());
+                    map.put("submittedAt", c.getCreatedAt());
+                    map.put("dueDate", c.getDueDate());
+                    map.put("companyId", c.getCompanyId()); map.put("companyName", c.getCompanyName());
+                    map.put("department", c.getDepartment()); map.put("complainantName", c.getComplainantName());
+                    map.put("priority", c.getPriority());
+                    
+                    // Add other fields that might be needed by detail views
+                    
+                    return ResponseEntity.ok(map);
                 })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/resolution")
+    public ResponseEntity<?> getResolution(@PathVariable Long id) {
+        return resolutionRepo.findAll().stream()
+                .filter(r -> r.getComplaintId().equals(id))
+                .max(Comparator.comparing(Resolution::getSubmittedAt))
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -298,6 +369,30 @@ public class ComplaintApiController {
         return ResponseEntity.ok(complaintService.forward(id, priority));
     }
 
+    @PostMapping("/{id}/forward-to-dept")
+    public ResponseEntity<?> forwardToDept(@PathVariable Long id, @RequestParam("userId") Long userId, @RequestBody Map<String, Object> body) {
+        Complaint c = complaintRepo.findById(id).orElseThrow();
+        User user = userRepo.findById(userId).orElseThrow();
+        
+        if (user.getRole() != User.Role.COMPANY_ADMIN || !c.getCompanyId().equals(user.getCompanyId())) {
+             return ResponseEntity.status(403).body(Map.of("error", "Access denied. Only company admin can forward to department."));
+        }
+
+        Long deptUserId = body.get("deptUserId") instanceof Number ? ((Number)body.get("deptUserId")).longValue() : Long.parseLong(body.get("deptUserId").toString());
+        String deptName = (String) body.get("deptName");
+        
+        c.setDepartmentUserId(deptUserId);
+        c.setDepartment(deptName);
+        c.setStatus(Complaint.Status.FORWARDED);
+        c.setSentToDepartmentAt(LocalDateTime.now());
+        Complaint saved = complaintRepo.save(c);
+        
+        // Notify Dept User
+        notifService.createNotification(deptUserId, saved.getId(), "NEW_ASSIGNMENT", "New Task Assigned", "Company admin forwarded a case: " + c.getTitle());
+        
+        return ResponseEntity.ok(saved);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> delete(@PathVariable Long id) {
         complaintService.deleteComplaint(id);
@@ -311,6 +406,8 @@ public class ComplaintApiController {
         
         // Logic fixed: Keep PENDING (default or current)
         c.setAssignedAdminId(adminId);
+        if (c.getCreatedAt() == null) c.setCreatedAt(LocalDateTime.now());
+        if (c.getDueDate() == null) c.setDueDate(LocalDateTime.now().plusDays(7));
         Complaint saved = complaintRepo.save(c);
         
         // Notify Admin
@@ -325,6 +422,8 @@ public class ComplaintApiController {
         Long adminId = body.get("adminId");
         Complaint c = complaintRepo.findById(id).orElseThrow();
         c.setAssignedAdminId(adminId);
+        if (c.getCreatedAt() == null) c.setCreatedAt(LocalDateTime.now());
+        if (c.getDueDate() == null) c.setDueDate(LocalDateTime.now().plusDays(7));
         Complaint saved = complaintRepo.save(c);
 
         // Notify Admin
@@ -334,12 +433,62 @@ public class ComplaintApiController {
         return ResponseEntity.ok(Map.of("success", true, "adminName", admin.getFullName(), "id", saved.getId()));
     }
 
-    @GetMapping("/{id}/chat")
-    public ResponseEntity<?> getChat(@PathVariable Long id, @RequestParam("userId") Long userId) {
+    @GetMapping("/unread-counts")
+    public ResponseEntity<?> getUnreadCounts(@RequestParam("userId") Long userId) {
         User user = userRepo.findById(userId).orElseThrow();
-        Complaint c = complaintRepo.findById(id).orElseThrow();
+        Map<String, Long> counts = new HashMap<>();
         
-        if (user.getRole() == User.Role.ADMIN && (c.getAssignedAdminId() == null || !c.getAssignedAdminId().equals(userId))) {
+        // 1. Private messages count (Announcements/Admin DM)
+        counts.put("private", chatRepo.countUnreadPrivateForUser(userId));
+        
+        // 2. Complaint specific counts
+        List<Complaint> myComplaints;
+        if (user.getRole() == User.Role.SUPER_ADMIN) {
+            myComplaints = complaintRepo.findAll();
+        } else if (user.getRole() == User.Role.ADMIN) {
+            myComplaints = complaintRepo.findByAssignedAdminId(userId);
+        } else if (user.getRole() == User.Role.CUSTOMER || user.getRole() == User.Role.EMPLOYEE) {
+            myComplaints = complaintRepo.findByComplainantId(userId);
+        } else {
+            myComplaints = new ArrayList<>();
+        }
+
+        for (Complaint c : myComplaints) {
+            long unread = chatRepo.countUnreadByComplaintAndNotSender(c.getId(), userId);
+            if (unread > 0) counts.put("cmp-" + c.getId(), unread);
+        }
+
+        // Total sum for the main badge
+        long total = counts.values().stream().mapToLong(Long::longValue).sum();
+        counts.put("total", total);
+
+        return ResponseEntity.ok(counts);
+    }
+
+    @GetMapping("/{id}/chat")
+    public ResponseEntity<?> getChat(@PathVariable Long id, @RequestParam("userId") Long userId, @RequestParam(required = false) Long recipientId) {
+        User user = userRepo.findById(userId).orElseThrow();
+        boolean authorized = false;
+        Complaint c = null;
+
+        if (id == 0) {
+            // Global Admin Room or Private Admin Chat
+            if (user.getRole() == User.Role.SUPER_ADMIN || user.getRole() == User.Role.ADMIN) {
+                authorized = true;
+                if (recipientId != null) {
+                    return ResponseEntity.ok(chatRepo.findPrivateMessages(userId, recipientId));
+                }
+            }
+        } else {
+            c = complaintRepo.findById(id).orElseThrow();
+            if (user.getRole() == User.Role.SUPER_ADMIN) authorized = true;
+            else if (user.getRole() == User.Role.ADMIN && userId.equals(c.getAssignedAdminId())) authorized = true;
+            else if (user.getRole() == User.Role.COMPANY_ADMIN && user.getCompanyId().equals(c.getCompanyId())) authorized = true;
+            else if (user.getRole() == User.Role.DEPT_USER && userId.equals(c.getDepartmentUserId())) authorized = true;
+            else if (userId.equals(c.getComplainantId())) authorized = true;
+        }
+
+        if (!authorized) {
             return ResponseEntity.status(403).body(Map.of("error", "Access denied to this chat."));
         }
         
@@ -347,20 +496,51 @@ public class ComplaintApiController {
     }
 
     @PostMapping("/{id}/chat")
-    public ResponseEntity<?> postChat(@PathVariable Long id, @RequestParam("userId") Long userId, @RequestBody ChatMessage msg) {
+    public ResponseEntity<?> postChat(@PathVariable Long id, @RequestParam("userId") Long userId, @RequestParam(required = false) Long recipientId, @RequestBody ChatMessage msg) {
         User user = userRepo.findById(userId).orElseThrow();
-        Complaint c = complaintRepo.findById(id).orElseThrow();
+        boolean authorized = false;
+        Complaint c = null;
 
-        if (user.getRole() == User.Role.ADMIN && (c.getAssignedAdminId() == null || !c.getAssignedAdminId().equals(userId))) {
-            return ResponseEntity.status(403).body(Map.of("error", "Access denied. Cannot post to this chat."));
+        if (id == 0) {
+            if (user.getRole() == User.Role.SUPER_ADMIN || user.getRole() == User.Role.ADMIN) authorized = true;
+        } else {
+            c = complaintRepo.findById(id).orElseThrow();
+            if (user.getRole() == User.Role.SUPER_ADMIN) authorized = true;
+            else if (user.getRole() == User.Role.ADMIN && userId.equals(c.getAssignedAdminId())) authorized = true;
+            else if (user.getRole() == User.Role.COMPANY_ADMIN && user.getCompanyId().equals(c.getCompanyId())) authorized = true;
+            else if (user.getRole() == User.Role.DEPT_USER && userId.equals(c.getDepartmentUserId())) authorized = true;
+            else if (userId.equals(c.getComplainantId())) authorized = true;
         }
 
+        if (!authorized) return ResponseEntity.status(403).body(Map.of("error", "Denied"));
+
         msg.setComplaintId(id);
+        msg.setRecipientId(recipientId);
         msg.setSenderId(userId);
-        msg.setSenderName(user.getFullName());
+        msg.setSenderName(user.getFullName() != null ? user.getFullName() : user.getUsername());
         msg.setSenderRole(user.getRole().name());
+        
+        if (msg.getChannel() == null || msg.getChannel().isBlank()) {
+            if (user.getRole() == User.Role.DEPT_USER) msg.setChannel("department");
+            else if (user.getRole() == User.Role.COMPANY_ADMIN) msg.setChannel("company");
+            else msg.setChannel("employee");
+        }
         if (msg.getCreatedAt() == null) msg.setCreatedAt(LocalDateTime.now());
         return ResponseEntity.ok(chatRepo.save(msg));
+    }
+
+    @PostMapping("/{id}/chat/read")
+    public ResponseEntity<?> markChatRead(@PathVariable Long id, @RequestParam("userId") Long userId, @RequestParam("channel") String channel) {
+        List<ChatMessage> messages = chatRepo.findByComplaintIdOrderByCreatedAtAsc(id);
+        boolean changed = false;
+        for (ChatMessage m : messages) {
+            if (m.getChannel().equalsIgnoreCase(channel) && !m.getSenderId().equals(userId) && !m.isRead()) {
+                m.setRead(true);
+                changed = true;
+            }
+        }
+        if (changed) chatRepo.saveAll(messages);
+        return ResponseEntity.ok(Map.of("success", true));
     }
 
     @GetMapping("/{id}/evidence")

@@ -303,12 +303,32 @@ const CMS = (() => {
     return updateComplaint(id, { status: 'RESOLVED' });
   }
 
-  function approveResolution(id, adminName) {
-    return updateComplaint(id, { status: 'RESOLVED' });
+  async function approveResolution(id, adminName) {
+    const session = getSession();
+    try {
+      const resp = await fetch(`${BASE_URL}/resolutions/${id}/approve?userId=${session.id}`, { method: 'POST' });
+      if (resp.ok) {
+        await fetchLiveComplaints();
+        return true;
+      }
+    } catch (e) { console.error(e); }
+    return false;
   }
 
-  function rejectResolution(id, reason, adminName) {
-    return updateComplaint(id, { status: 'IN_PROGRESS' });
+  async function rejectResolution(id, reason, adminName) {
+    const session = getSession();
+    try {
+      const resp = await fetch(`${BASE_URL}/resolutions/${id}/reject?userId=${session.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason })
+      });
+      if (resp.ok) {
+        await fetchLiveComplaints();
+        return true;
+      }
+    } catch (e) { console.error(e); }
+    return false;
   }
 
   function runOverdueCheck() {
@@ -332,17 +352,19 @@ const CMS = (() => {
         const saved = await resp.json();
         const c = cachedComplaints.find(comp => String(comp.id) === String(complaintId));
         if (c) {
-          if (!c.messages) c.messages = { employee: [], company: [] };
+          if (!c.messages) c.messages = { employee: [], company: [], department: [] };
           // Map backend 'message' to frontend 'text' for compatibility with UI
           const frontendMsg = {
             id: saved.id,
-            sender: sender, // 'admin', 'employee', etc.
+            sender: sender, // role string
             senderName: saved.senderName,
+            senderRole: saved.senderRole || sender,
             text: saved.message,
             at: saved.createdAt,
             channel: saved.channel
           };
-          const ch = saved.channel === 'company' ? 'company' : 'employee';
+          const ch = ['company', 'department', 'employee'].includes(saved.channel) ? saved.channel : 'employee';
+          if (!c.messages[ch]) c.messages[ch] = [];
           c.messages[ch].push(frontendMsg);
         }
         return true;
@@ -353,39 +375,59 @@ const CMS = (() => {
     return false;
   }
 
-  function markMessagesRead(complaintId, channel, readerRole) {
+  async function markMessagesRead(complaintId, channel) {
+    try {
+      const session = getSession();
+      await fetch(`${BASE_URL}/admin/complaints/${complaintId}/chat/read?userId=${session.id}&channel=${channel}`, {
+        method: 'POST'
+      });
+    } catch (e) {
+      console.error('Mark read failed:', e);
+    }
   }
 
-  // ── Admin-SuperAdmin Messages ──
-  function getAdminSAMessages() {
-    return JSON.parse(localStorage.getItem('cms_admin_sa_messages') || '[]');
+  // ── Communication HUB Integration ──
+  async function sendMessage(complaintId, channel, senderRole, text, senderName) {
+    try {
+      const session = getSession();
+      const response = await fetch(`${BASE_URL}/admin/complaints/${complaintId}/chat?userId=${session.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel: channel,
+          message: text,
+          senderName: senderName,
+          senderRole: senderRole
+        })
+      });
+      return response.ok;
+    } catch (e) {
+      console.error('Send message failed:', e);
+      return false;
+    }
   }
-  function saveAdminSAMessages(list) {
-    localStorage.setItem('cms_admin_sa_messages', JSON.stringify(list));
+
+  async function fetchLiveAdmins() {
+    try {
+      const response = await fetch(`${BASE_URL}/users/admins`);
+      if (response.ok) return await response.json();
+    } catch (e) { console.error('Fetch live admins failed:', e); }
+    return [];
   }
-  function getThreadBetween(id1, id2) {
-    const all = getAdminSAMessages();
-    return all.filter(m => (String(m.from) === String(id1) && String(m.to) === String(id2)) || (String(m.from) === String(id2) && String(m.to) === String(id1)));
+
+  async function fetchLiveComplaints() {
+    try {
+      const response = await fetch(`${BASE_URL}/admin/complaints?userId=${getSession().id}`);
+      if (response.ok) return await response.json();
+    } catch (e) { console.error('Fetch live complaints failed:', e); }
+    return [];
   }
-  function sendAdminSAMessage(fromId, toId, text) {
-    const all = getAdminSAMessages();
-    const msg = { id: Date.now(), from: fromId, to: toId, text, at: new Date().toISOString(), read: false, status: 'sent' };
-    all.push(msg);
-    saveAdminSAMessages(all);
-    return msg;
-  }
-  function markAdminSAMessagesRead(fromId, toId) {
-    const all = getAdminSAMessages().map(m => {
-      if (String(m.from) === String(fromId) && String(m.to) === String(toId) && !m.read) {
-        return { ...m, read: true, status: 'read' };
-      }
-      return m;
-    });
-    saveAdminSAMessages(all);
-  }
-  function getUnreadAdminSACount(toId) {
-    return getAdminSAMessages().filter(m => String(m.to) === String(toId) && !m.read).length;
-  }
+
+  function getAdminSAMessages() { return []; }
+  function getThreadBetween() { return []; }
+  function sendAdminSAMessage() { return {}; }
+  function markAdminSAMessagesRead() {}
+  function getUnreadAdminSACount() { return 0; }
 
   // ── Helpers ──
   function getVisibleStatus(complaint, viewerRole) {
@@ -411,6 +453,8 @@ const CMS = (() => {
       VIEWED: ['badge-viewed', 'bi-eye', 'Viewed'],
       IN_PROGRESS: ['badge-inprogress', 'bi-arrow-repeat', 'In Progress'],
       OVERDUE: ['badge-overdue', 'bi-exclamation-circle', 'Overdue'],
+      RESOLUTION_SENT: ['badge-resolutionsent', 'bi-send-check', 'Resolution Sent'],
+      RESOLUTION_REJECTED: ['badge-resolutionrejected', 'bi-x-circle', 'Res. Rejected'],
       RESOLVED: ['badge-resolved', 'bi-shield-check', 'Resolved']
     };
     const [cls, icon, label] = map[status] || ['badge-pending', 'bi-question', 'Unknown'];
@@ -445,20 +489,24 @@ const CMS = (() => {
         console.log(`Fetched ${liveData.length} raw complaints.`);
         
         cachedComplaints = await Promise.all(liveData.map(async c => {
-          let messages = { employee: [], company: [] };
+          let messages = { employee: [], company: [], department: [] };
+          let lastActivity = c.createdAt || new Date().toISOString();
           try {
             // Note: chat fetch is optional and shouldn't block the whole dashboard
             const mResp = await fetch(`${BASE_URL}/admin/complaints/${c.id}/chat?userId=${session.id}`);
             if (mResp.ok) {
               const msgs = await mResp.json();
               msgs.forEach(m => {
-                const ch = m.channel === 'company' ? 'company' : 'employee';
+                if (m.createdAt > lastActivity) lastActivity = m.createdAt;
+                const ch = ['company', 'department', 'employee'].includes(m.channel) ? m.channel : 'employee';
                 let senderRole = m.senderRole || 'unknown';
                 
+                if (!messages[ch]) messages[ch] = [];
                 messages[ch].push({
                   id: m.id,
                   sender: senderRole.toLowerCase(),
                   senderName: m.senderName,
+                  senderRole: m.senderRole || senderRole,
                   text: m.message,
                   at: m.createdAt
                 });
@@ -476,6 +524,7 @@ const CMS = (() => {
             complainantType: (c.complainantType || 'EMPLOYEE').toUpperCase(),
             status: (c.status || 'PENDING').toUpperCase(),
             createdAt: c.createdAt || new Date().toISOString(),
+            lastActivity: lastActivity,
             complainantName: c.complainantName || 'Anonymous',
             companyName: c.companyName || 'Unknown Company',
             messages: messages
@@ -520,17 +569,85 @@ const CMS = (() => {
     getAdminRequests, saveAdminRequests, approveAdminRequest, rejectAdminRequest,
     assignResponsibility,
     getNotifications, addNotification, markNotifRead, unreadCount,
-    sendMessage, markMessagesRead,
+    sendMessage, fetchChat, markMessagesRead, fetchLiveAdmins, fetchLiveComplaints,
     getAdminSAMessages, sendAdminSAMessage, markAdminSAMessagesRead, getThreadBetween, getUnreadAdminSACount,
     getVisibleStatus, fmtDate, fmtDateTime,
     statusBadge, priorityBadge, evidenceIcon,
-    fetchLiveComplaints, fetchLiveAdmins,
     syncLocalStorageToDB,
+    _unreadCounts: {},
+
+    fetchUnreadCounts: async function() {
+        const u = CMS.getSession();
+        if(!u) return;
+        try {
+            const resp = await fetch(`/api/complaints/unread-counts?userId=${u.id}`);
+            if(resp.ok) {
+                const counts = await resp.json();
+                CMS._unreadCounts = counts;
+                CMS.updateNotificationBadges(counts);
+                window.dispatchEvent(new CustomEvent('cms-unread-updated', { detail: counts }));
+            }
+        } catch(e) { console.error("Badges fetch failed", e); }
+    },
+
+    getUnreadCount: function(type, id) {
+        const key = type === 'private' ? 'private' : `cmp-${id}`;
+        return CMS._unreadCounts[key] || 0;
+    },
+
+    updateNotificationBadges: function(counts) {
+        // Global counts removed per user request. 
+        // Notifications are now handled via highlights in the communication portal.
+        const badge = document.getElementById('comm-unread-badge');
+        if (badge) badge.style.display = 'none';
+        
+        const sidebarBadges = document.querySelectorAll('.notif-count');
+        sidebarBadges.forEach(b => b.style.display = 'none');
+    },
+
+    pollUnreadCounts: function() {
+        const u = CMS.getSession();
+        if (!u) return;
+        CMS.fetchUnreadCounts();
+        setInterval(() => CMS.fetchUnreadCounts(), 15000);
+    },
     syncDB: async function() {
       await fetchLiveAdmins();
       return await fetchLiveComplaints();
-    }
+    },
+    BASE_URL
   };
+
+  async function fetchChat(complaintId) {
+    try {
+      const session = getSession();
+      const resp = await fetch(`${BASE_URL}/admin/complaints/${complaintId}/chat?userId=${session.id}`);
+      if (resp.ok) return await resp.json();
+    } catch (e) { console.error('Fetch chat failed:', e); }
+    return [];
+  }
+
+  async function markMessagesRead(complaintId, channel, recipientId) {
+    try {
+      const session = getSession();
+      const key = complaintId === 0 ? 'private' : `cmp-${complaintId}`;
+      
+      // Update local state immediately for responsiveness
+      const currentVal = CMS._unreadCounts[key] || 0;
+      CMS._unreadCounts[key] = 0;
+      if (CMS._unreadCounts.total) {
+          CMS._unreadCounts.total = Math.max(0, CMS._unreadCounts.total - currentVal);
+      }
+      CMS.updateNotificationBadges(CMS._unreadCounts);
+
+      // Notify backend
+      await fetch(`${BASE_URL}/admin/complaints/${complaintId}/chat/read?userId=${session.id}&channel=${channel}${recipientId ? '&recipientId='+recipientId : ''}`, {
+        method: 'POST'
+      });
+      
+      window.dispatchEvent(new CustomEvent('cms-unread-updated', { detail: CMS._unreadCounts }));
+    } catch (e) { console.error('Mark read failed:', e); }
+  }
 
   // ── Data Migration Logic ──
   async function syncLocalStorageToDB() {
@@ -624,13 +741,8 @@ function timeAgo(iso) {
 }
 
 async function updateNotifBadge() {
-  const session = CMS.getSession();
-  if (!session) return;
-  const n = await CMS.unreadCount(session.role, session.id);
-  document.querySelectorAll('.notif-count').forEach(el => {
-    el.textContent = n > 99 ? '99+' : n;
-    el.style.display = n === 0 ? 'none' : 'flex';
-  });
+  // Disabled per user request - removing all numerical counts from global UI
+  document.querySelectorAll('.notif-count').forEach(el => el.style.display = 'none');
 }
 
 function generatePdf(complaintId) {

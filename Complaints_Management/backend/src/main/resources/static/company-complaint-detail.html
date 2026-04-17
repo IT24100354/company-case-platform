@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complaint Detail - Company Admin</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="assets/styles.css" />
+    <style>
+        .detail-card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .evidence-item { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #f1f5f9; border-radius: 10px; margin-bottom: 8px; }
+        .evidence-item:hover { background: #f8fafc; }
+        .timeline-item { position: relative; padding-left: 24px; border-left: 2px solid #e2e8f0; padding-bottom: 20px; }
+        .timeline-item:last-child { border-left-color: transparent; }
+        .timeline-dot { position: absolute; left: -7px; top: 0; width: 12px; height: 12px; border-radius: 50%; background: #94a3b8; border: 2px solid #fff; }
+        .timeline-dot.active { background: var(--clr-primary); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); }
+    </style>
+</head>
+<body class="bg-light">
+
+    <nav class="sidebar">
+        <div class="sidebar-brand">Company Admin</div>
+        <div class="sidebar-nav">
+            <a class="nav-link-item" href="company-admin-dashboard.html"><i class="bi bi-grid"></i> Dashboard</a>
+            <a class="nav-link-item active" href="#"><i class="bi bi-eye"></i> Detail View</a>
+            <a class="nav-link-item" href="communication.html"><i class="bi bi-chat-dots"></i> Communication</a>
+            <hr>
+            <a class="nav-link-item text-danger" href="login.html" onclick="CMS.logout()"><i class="bi bi-box-arrow-right"></i> Logout</a>
+        </div>
+    </nav>
+
+    <div class="main-wrapper" style="margin-left: 260px; padding: 2rem;">
+        <div class="d-flex align-items-center gap-3 mb-4">
+            <a href="company-admin-dashboard.html" class="btn btn-light"><i class="bi bi-arrow-left"></i></a>
+            <h2 class="fw-bold mb-0">Complaint Details</h2>
+            <div id="status-badge-container"></div>
+        </div>
+
+        <div id="loading-spinner" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Loading case details...</p>
+        </div>
+
+        <div id="content-area" style="display: none;">
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="detail-card mb-4">
+                        <div class="d-flex justify-content-between mb-3">
+                            <span class="text-muted small" id="case-id">CASE-ID</span>
+                            <span class="badge bg-light text-dark" id="case-category">Category</span>
+                        </div>
+                        <h3 class="fw-bold mb-3" id="case-title">Complaint Title</h3>
+                        <p class="text-muted" id="case-desc" style="white-space: pre-wrap;"></p>
+                        
+                        <hr>
+                        <h5 class="fw-bold mb-3"><i class="bi bi-paperclip me-2"></i>Attachments</h5>
+                        <div id="evidence-list" class="row g-2">
+                            <!-- Files load here -->
+                        </div>
+                    </div>
+
+                    <div class="detail-card" id="actions-card">
+                        <h5 class="fw-bold mb-3">Available Actions</h5>
+                        <div class="d-flex gap-2" id="action-buttons">
+                            <!-- Buttons load here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="detail-card mb-4">
+                        <h5 class="fw-bold mb-3"><i class="bi bi-person-circle me-2"></i>Complainant</h5>
+                        <div class="mb-2">
+                            <div class="small text-muted">Name</div>
+                            <div class="fw-bold" id="user-name">John Doe</div>
+                        </div>
+                        <hr>
+                        <div class="mb-2">
+                            <div class="small text-muted">Type</div>
+                            <div class="fw-bold" id="user-type">Employee</div>
+                        </div>
+                    </div>
+
+                    <div class="detail-card">
+                        <h5 class="fw-bold mb-3"><i class="bi bi-clock-history me-2"></i>Case History</h5>
+                        <div id="timeline" class="mt-3">
+                            <!-- Timeline load here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Forward Modal -->
+    <div class="modal fade" id="forwardModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content" style="border-radius:16px;">
+                <div class="modal-header">
+                    <h5 class="fw-bold">Forward to Department</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">Select the department that should handle this resolution.</p>
+                    <select class="form-select mb-3" id="dept-select">
+                        <option value="">-- Choose Department --</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary px-4" onclick="doForward()">Forward Now</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/data-store.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const session = CMS.requireAuth(['company_admin']);
+        const params = new URLSearchParams(window.location.search);
+        const complaintId = params.get('id');
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!complaintId) {
+                window.location.href = 'company-admin-dashboard.html';
+                return;
+            }
+            await loadDetails();
+        });
+
+        async function loadDetails() {
+            try {
+                // Fetch the complaint detail
+                const res = await fetch(`/api/complaints/${complaintId}?userId=${session.id}`);
+                if (!res.ok) throw new Error("Not found");
+                const c = await res.json();
+
+                // Fill UI
+                document.getElementById('case-id').textContent = `CMP-${String(c.id).padStart(3, '0')}`;
+                document.getElementById('case-category').textContent = c.category || 'General';
+                document.getElementById('case-title').textContent = c.title;
+                document.getElementById('case-desc').textContent = c.description;
+                document.getElementById('user-name').textContent = c.complainantName || c.employeeName || 'Anonymous';
+                document.getElementById('user-type').textContent = c.complainantType || 'Employee';
+                
+                document.getElementById('status-badge-container').innerHTML = CMS.statusBadge(c.status, 'company_admin');
+
+                // Evidence
+                const evRes = await fetch(`/api/admin/complaints/${c.id}/evidence?userId=${session.id}`);
+                const evidenceList = evRes.ok ? await evRes.json() : [];
+                const evContainer = document.getElementById('evidence-list');
+                evContainer.innerHTML = evidenceList.length ? evidenceList.map(ev => `
+                    <div class="col-md-6">
+                        <div class="evidence-item">
+                            <i class="bi bi-file-earmark-text text-primary" style="font-size: 1.5rem;"></i>
+                            <div class="flex-1 overflow-hidden">
+                                <div class="text-truncate small fw-bold">${ev.fileName}</div>
+                                <a href="${ev.filePath}" target="_blank" class="text-primary x-small">View File</a>
+                            </div>
+                        </div>
+                    </div>
+                `).join('') : '<p class="text-muted small">No files attached.</p>';
+
+                // Timeline
+                const history = c.statusHistory || [];
+                document.getElementById('timeline').innerHTML = history.map((h, i) => `
+                    <div class="timeline-item">
+                        <div class="timeline-dot ${i === 0 ? 'active' : ''}"></div>
+                        <div class="small fw-bold">${h.status}</div>
+                        <div class="text-muted x-small">${new Date(h.at).toLocaleString()}</div>
+                        <div class="text-muted x-small">Action by: ${h.by || 'System'}</div>
+                    </div>
+                `).join('') || '<p class="text-muted small">No history recorded.</p>';
+
+                // Resolution Details
+                const resListRes = await fetch(`/api/resolutions/complaint/${complaintId}`);
+                const resolutions = resListRes.ok && resListRes.headers.get("content-type")?.includes("application/json") 
+                    ? await resListRes.json() 
+                    : [];
+                const latestRes = resolutions[0];
+                
+                if (latestRes) {
+                    const resHtml = `
+                        <div class="detail-card mb-4 border-success" style="border-left: 5px solid #16a34a;">
+                            <h5 class="fw-bold text-success mb-3"><i class="bi bi-check-circle-fill me-2"></i>Proposed Resolution</h5>
+                            <div class="mb-2">
+                                <div class="small text-muted">Title</div>
+                                <div class="fw-bold">${latestRes.title}</div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="small text-muted">Description</div>
+                                <div class="small">${latestRes.description}</div>
+                            </div>
+                            ${latestRes.documentPath ? `
+                                <div class="p-2 bg-light rounded d-flex align-items-center gap-2">
+                                    <i class="bi bi-file-earmark-check text-success"></i>
+                                    <a href="${latestRes.documentPath}" target="_blank" class="small fw-bold">View Attached Fix</a>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                    document.getElementById('case-desc').insertAdjacentHTML('afterend', resHtml);
+                }
+
+                // Actions
+                const actionsCont = document.getElementById('action-buttons');
+                if (c.status === 'VIEWED' || c.status === 'APPROVED') {
+                    actionsCont.innerHTML = `<button class="btn btn-primary w-100" onclick="openForwardModal()">Forward to Department</button>`;
+                } else if (c.status === 'RESOLUTION_SENT') {
+                    actionsCont.innerHTML = `
+                        <button class="btn btn-success flex-fill" onclick="decideResolution('approve')">Accept Resolution</button>
+                        <button class="btn btn-outline-danger flex-fill" onclick="decideResolution('reject')">Reject Resolution</button>
+                    `;
+                } else if (c.status === 'FORWARDED' || c.status === 'IN_PROGRESS') {
+                     actionsCont.innerHTML = `<p class="text-muted small">Forwarded to department. Awaiting resolution.</p>`;
+                } else {
+                    document.getElementById('actions-card').style.display = 'none';
+                }
+
+                document.getElementById('loading-spinner').style.display = 'none';
+                document.getElementById('content-area').style.display = 'block';
+
+            } catch (err) {
+                console.error(err);
+                alert("Could not load case details.");
+            }
+        }
+
+        async function openForwardModal() {
+            // Fetch users with DEPT_USER role for this company
+            const res = await fetch(`/api/departments/users?companyId=${session.companyId}`);
+            if (res.ok) {
+                const users = await res.json();
+                const select = document.getElementById('dept-select');
+                select.innerHTML = '<option value="">-- Choose Department Portal --</option>' + 
+                    users.map(u => `<option value="${u.id}">${u.department || u.fullName} (User: ${u.username})</option>`).join('');
+                new bootstrap.Modal(document.getElementById('forwardModal')).show();
+            } else {
+                alert("Could not load departments portals.");
+            }
+        }
+
+        async function doForward() {
+            const select = document.getElementById('dept-select');
+            const deptId = select.value;
+            const deptName = select.selectedIndex !== -1 ? select.options[select.selectedIndex].text : "";
+            if (!deptId) return alert("Select a department");
+
+            const res = await fetch(`/api/complaints/${complaintId}/forward-to-dept?userId=${session.id}`, { 
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    deptUserId: deptId,
+                    deptName: deptName
+                })
+            });
+            if (res.ok) {
+                alert("Successfully forwarded to department.");
+                window.location.reload();
+            } else {
+                alert("Failed to forward.");
+            }
+        }
+        async function decideResolution(type) {
+            let reason = "";
+            if (type === 'reject') {
+                reason = prompt("Please provide a reason for rejection:");
+                if (!reason) return;
+            }
+
+            const res = await fetch(`/api/resolutions/${complaintId}/${type}?userId=${session.id}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ reason: reason })
+            });
+
+            if (res.ok) {
+                alert(`Resolution ${type === 'approve' ? 'Accepted' : 'Rejected'}.`);
+                window.location.reload();
+            } else {
+                alert("Failed to process decision.");
+            }
+        }
+    </script>
+</body>
+</html>

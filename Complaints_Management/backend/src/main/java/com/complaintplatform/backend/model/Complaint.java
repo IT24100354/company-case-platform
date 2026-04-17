@@ -16,6 +16,7 @@ public class Complaint {
         VIEWED,
         IN_PROGRESS,
         RECEIVED_RESOLUTION,
+        RESOLUTION_SENT,
         RESOLUTION_REJECTED,
         RESOLVED
     }

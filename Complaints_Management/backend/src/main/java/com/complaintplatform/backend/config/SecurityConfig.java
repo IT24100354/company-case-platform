@@ -37,11 +37,11 @@ public class SecurityConfig {
 
                         // Protected APIs
                         .requestMatchers("/api/admin/**").permitAll()
-                        .requestMatchers("/api/super-admin/**").permitAll()
+                        .requestMatchers("/api/superadmin/**").permitAll()
                         .requestMatchers("/api/complaints/**").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/api/users/**").permitAll()
-                        .requestMatchers("/api/companies/**", "/api/departments/**", "/api/notifications/**", "/api/internal-notes/**", "/api/repair/**", "/uploads/**").permitAll()
+                        .requestMatchers("/api/companies/**", "/api/departments/**", "/api/notifications/**", "/api/internal-notes/**", "/api/repair/**", "/api/resolutions/**", "/uploads/**").permitAll()
                         .requestMatchers("/api/internal-notes/**", "/api/internal-notes").permitAll()
                         .requestMatchers("/api/repair/**", "/api/repair").permitAll()
 
