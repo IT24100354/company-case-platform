@@ -450,10 +450,14 @@ const CMS = (() => {
       APPROVED: ['badge-approved', 'bi-check-circle', 'Approved'],
       REJECTED: ['badge-rejected', 'bi-x-circle', 'Rejected'],
       FORWARDED: ['badge-forwarded', 'bi-send', 'Forwarded'],
+      NOT_VIEWED: ['badge-notviewed', 'bi-eye-slash', 'Not Viewed'],
       VIEWED: ['badge-viewed', 'bi-eye', 'Viewed'],
       IN_PROGRESS: ['badge-inprogress', 'bi-arrow-repeat', 'In Progress'],
+      PENDING_RESOLUTION: ['badge-resolutionsent', 'bi-hourglass-split', 'Pending Resolution'],
+      MORE_INFO_REQUIRED: ['badge-rejected', 'bi-exclamation-triangle', 'More Info Required'],
       OVERDUE: ['badge-overdue', 'bi-exclamation-circle', 'Overdue'],
       RESOLUTION_SENT: ['badge-resolutionsent', 'bi-send-check', 'Resolution Sent'],
+      RESOLUTION_RECEIVED: ['badge-resolutionsent', 'bi-envelope-check', 'Resolution Received'],
       RESOLUTION_REJECTED: ['badge-resolutionrejected', 'bi-x-circle', 'Res. Rejected'],
       RESOLVED: ['badge-resolved', 'bi-shield-check', 'Resolved']
     };

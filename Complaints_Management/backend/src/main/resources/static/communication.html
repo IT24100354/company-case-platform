@@ -97,10 +97,12 @@
             font-size: 1rem;
         }
 
-        .chat-input-area { padding: 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 12px; background: #fff; }
-        .chat-input { flex: 1; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 16px; outline: none; transition: 0.2s; }
-        .chat-input:focus { border-color: var(--clr-primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
-        .btn-send { background: var(--clr-primary); color: #fff; border: none; width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+        .chat-input-area { padding: 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 12px; background: #fff; align-items: center; }
+        .chat-input { flex: 1; border: none; background: #f1f5f9; border-radius: 24px; padding: 12px 24px; outline: none; transition: 0.2s; height: 50px; font-size: 0.95rem; }
+        .chat-input:focus { background: #fff; box-shadow: 0 0 0 2px var(--clr-primary); }
+        .btn-send { background: var(--clr-primary); color: #fff; border: none; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); transition: 0.2s; }
+        .btn-send:hover { transform: scale(1.05); background: var(--clr-primary-h); }
+        .btn-send i { transform: translateX(2px); }
         
         .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; }
         
@@ -111,6 +113,7 @@
     </style>
 </head>
 <body class="bg-light">
+    <div id="toast-container"></div>
 
     <nav class="sidebar">
         <div class="sidebar-brand" id="portal-brand">User Portal</div>
@@ -331,13 +334,11 @@
                         `;
                     }).join('')}
                 </div>
-                <div class="chat-footer p-3 bg-white border-top">
-                    <div class="d-flex gap-2">
-                        <input type="text" class="form-control border-0 bg-light px-4" style="border-radius:24px; height:45px" id="msg-input" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMsg()">
-                        <button class="btn btn-primary d-flex align-items-center justify-content-center" style="width:45px; height:45px; border-radius:50%; background:#2563eb; border:none; flex-shrink:0" onclick="sendMsg()">
-                            <i class="bi bi-send-fill" style="transform:translateX(2px)"></i>
-                        </button>
-                    </div>
+                <div class="chat-input-area">
+                    <input type="text" class="chat-input" id="msg-input" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMsg()">
+                    <button class="btn-send" onclick="sendMsg()">
+                        <i class="bi bi-send-fill"></i>
+                    </button>
                 </div>
             `;
             const body = document.getElementById('chat-messages');
@@ -354,7 +355,7 @@
                 input.value = '';
                 await renderChatMain();
             } else {
-                alert("Failed to send message. Please try again.");
+                showToast("Failed to send message. Please try again.", "error");
             }
         }
     </script>

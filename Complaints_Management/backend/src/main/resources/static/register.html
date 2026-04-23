@@ -130,11 +130,8 @@
                         <label class="cms-label" for="lname">Last Name</label>
                         <input type="text" id="lname" class="cms-input" placeholder="Doe" required />
                     </div>
-                </div>
-
-                <div id="verification-fields" style="display:none">
+                </div>                <div id="verification-fields" style="display:none">
                     <div class="cms-form-group mb-3" id="company-wrap">
-                        <label class="cms-label" for="company">Company Name</label>
                         <div id="company-input-container">
                             <!-- Injected by JS -->
                         </div>
@@ -261,6 +258,7 @@
                 nicLabel.textContent = "National ID Card (NIC)";
                 
                 companyContainer.innerHTML = `
+                    <label class="cms-label" for="company">Company Name</label>
                     <select id="company" class="cms-input" required>
                         <option value="">Select Company</option>
                         <option value="SLT Digital">SLT Digital</option>
@@ -280,6 +278,7 @@
                 nicLabel.textContent = "Owner/Manager NIC";
                 
                 companyContainer.innerHTML = `
+                    <label class="cms-label" for="company">Company Name</label>
                     <input type="text" id="company" class="cms-input" placeholder="Enter your company name" required />
                 `;
                 
@@ -297,11 +296,47 @@
                 if (document.getElementById('registrationNumber')) document.getElementById('registrationNumber').required = false;
             } else {
                 vf.style.display = 'none';
+                companyContainer.innerHTML = '';
                 document.getElementById('nic').required = false;
                 document.getElementById('employeeId').required = false;
                 if (document.getElementById('registrationNumber')) document.getElementById('registrationNumber').required = false;
             }
             switchStep(1, 2, 'Personal Details', `Complete your ${selectedRole.replace('_', ' ')} profile details`);
+        }
+
+        async function handleAutoLogin(username, password) {
+            const btn = document.getElementById('form-submit-btn');
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Signing you in...';
+            
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (res.ok) {
+                    const sessionData = await res.json();
+                    sessionStorage.setItem('cms_session', JSON.stringify(sessionData));
+                    const role = sessionData.role.toUpperCase();
+
+                    const routes = {
+                        CUSTOMER: 'customer-dashboard.html',
+                        EMPLOYEE: 'employee-dashboard.html'
+                    };
+
+                    showToast('Logged in successfully! Redirecting...', 'success');
+                    setTimeout(() => {
+                        window.location.href = routes[role] || 'login.html';
+                    }, 1000);
+                } else {
+                    showToast('Registration ok, but auto-login failed. Please login manually.', 'info');
+                    setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+                }
+            } catch (err) {
+                showToast('Registration ok, but login connection error.', 'info');
+                setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+            }
         }
 
         function handleFormSubmit(e) {
@@ -323,16 +358,22 @@
             btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Registering...';
             btn.disabled = true;
 
+            // Safe field access
+            const getVal = (id) => {
+                const el = document.getElementById(id);
+                return el ? el.value.trim() : '';
+            };
+
             const payload = {
                 role: selectedRole.toUpperCase(),
-                fullName: (document.getElementById('fname').value.trim() + ' ' + document.getElementById('lname').value.trim()).trim(),
-                username: document.getElementById('username').value.trim(),
-                email: document.getElementById('email').value.trim(),
+                fullName: (getVal('fname') + ' ' + getVal('lname')).trim(),
+                username: getVal('username'),
+                email: getVal('email'),
                 password: p1,
-                nic: document.getElementById('nic').value.trim(),
-                employeeId: document.getElementById('employeeId').value.trim(),
-                companyName: document.getElementById('company').value.trim(),
-                registrationNumber: document.getElementById('registrationNumber') ? document.getElementById('registrationNumber').value.trim() : ''
+                nic: getVal('nic'),
+                employeeId: getVal('employeeId'),
+                companyName: getVal('company'),
+                registrationNumber: getVal('registrationNumber')
             };
 
             fetch('/api/auth/register', {
@@ -342,23 +383,23 @@
             })
             .then(res => res.json().then(data => ({ ok: res.ok, data })))
             .then(({ ok, data }) => {
-                btn.innerHTML = 'Register Now <i class="bi bi-check-circle"></i>';
-                btn.disabled = false;
-
                 if (ok) {
                     showToast('Registration successful!', 'success');
-                    switchStep(2, 3, '', '');
-                    document.getElementById('header-block').style.display = 'none';
-                    document.getElementById('back-nav').style.display = 'none';
+                    
                     if (selectedRole === 'customer' || selectedRole === 'employee') {
-                        const roleName = selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1);
-                        document.querySelector('#step-3 h2').textContent = 'Registration Successful';
-                        document.querySelector('#step-3 .cms-alert div').textContent = `Your ${selectedRole} account has been created. You can now log in directly.`;
-                        document.querySelector('#step-3 .bi-hourglass-split').className = 'bi bi-check-circle-fill';
-                        document.querySelector('#step-3 .text-center > div').style.background = 'rgba(22, 163, 74, 0.15)';
-                        document.querySelector('#step-3 .text-center > div').style.color = '#16a34a';
+                        // AUTO-LOGIN and REDIRECT
+                        handleAutoLogin(payload.username, p1);
+                    } else {
+                        // Show Approval Pending Screen
+                        btn.innerHTML = 'Register Now <i class="bi bi-check-circle"></i>';
+                        btn.disabled = false;
+                        switchStep(2, 3, '', '');
+                        document.getElementById('header-block').style.display = 'none';
+                        document.getElementById('back-nav').style.display = 'none';
                     }
                 } else {
+                    btn.innerHTML = 'Register Now <i class="bi bi-check-circle"></i>';
+                    btn.disabled = false;
                     showToast(data.message || 'Registration failed.', 'error');
                 }
             })

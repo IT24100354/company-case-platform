@@ -141,13 +141,13 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title"><i class="bi bi-check-circle text-success me-2"></i>Approve Complaint</h5>
+          <h5 class="modal-title"><i class="bi bi-send-fill text-primary me-2"></i>Approve & Forward</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <div class="cms-alert cms-alert-info mb-3">
             <i class="bi bi-info-circle-fill"></i>
-            <span>This will approve the complaint and forward it to the company for investigation. Please select a priority level and a deadline.</span>
+            <span>Approving this complaint will forward it to the company for investigation. A deadline will be automatically calculated based on the priority level.</span>
           </div>
           
           <div class="d-flex flex-column gap-2 mt-3">
@@ -236,8 +236,12 @@
       document.getElementById('topbar-status').innerHTML = CMS.statusBadge(c.status, 'admin');
       document.getElementById('msgs-link').href = `communication.html?id=${c.id}`;
       
+      if (isSuperAdmin) {
+        document.getElementById('back-btn').href = `super-admin-dashboard.html?view=${c.complainantType}`;
+      }
+      
       let resData = null;
-      if (['RESOLUTION_SENT', 'RESOLUTION_REJECTED', 'RESOLVED'].includes(c.status)) {
+      if (['RESOLUTION_SENT', 'RESOLUTION_RECEIVED', 'RESOLUTION_REJECTED', 'RESOLVED'].includes(c.status)) {
           const rResp = await fetch(`/api/complaints/${c.id}/resolution`);
           if (rResp.ok) resData = await rResp.json();
       }
@@ -245,13 +249,14 @@
       const html = buildDetailHTML(c, resData);
       document.getElementById('page-content').innerHTML = html;
       updateNotifBadge();
+      fetchAiSummary();
     }
 
     function buildDetailHTML(c, resolution) {
       const canApprove = c.status === 'PENDING';
       const canForward = c.status === 'PENDING' || c.status === 'APPROVED';
       const canStartInv = c.status === 'VIEWED';
-      const canResolve = c.status === 'RESOLUTION_SENT';
+      const canResolve = c.status === 'RESOLUTION_SENT' || c.status === 'RESOLUTION_RECEIVED';
 
       const evidenceList = c.evidence || [];
       // Deduplicate by path/filename just in case
@@ -266,20 +271,34 @@
           }
       });
 
-      const evidenceHTML = uniqueEvidence.length
+          const evidenceHTML = uniqueEvidence.length
         ? uniqueEvidence.map(ev => {
-            const type = (ev.fileType || 'File').toUpperCase();
+            const rawType = (ev.fileType || '').toLowerCase();
+            const fileName = (ev.fileName || '').toLowerCase();
             let icon = 'bi-file-earmark';
-            if (type === 'VIDEO') icon = 'bi-play-circle-fill text-primary';
-            else if (type === 'VOICE') icon = 'bi-mic-fill text-danger';
-            else if (type === 'DOCUMENT') icon = 'bi-file-earmark-pdf-fill text-warning';
+            let color = 'var(--clr-muted)';
+            let displayType = 'File';
+
+            if (rawType.startsWith('image/')) {
+                icon = 'bi-image-fill'; color = '#10b981'; displayType = 'Image';
+            } else if (rawType.includes('pdf')) {
+                icon = 'bi-file-earmark-pdf-fill'; color = '#ef4444'; displayType = 'PDF';
+            } else if (rawType.includes('word') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
+                icon = 'bi-file-earmark-word-fill'; color = '#2563eb'; displayType = 'Word';
+            } else if (rawType.includes('zip') || fileName.endsWith('.zip') || fileName.endsWith('.rar')) {
+                icon = 'bi-file-earmark-zip-fill'; color = '#f59e0b'; displayType = 'Archive';
+            } else if (rawType.includes('video') || fileName.endsWith('.mp4')) {
+                icon = 'bi-play-circle-fill'; color = 'var(--clr-primary)'; displayType = 'Video';
+            } else if (rawType.includes('audio') || fileName.endsWith('.mp3')) {
+                icon = 'bi-mic-fill'; color = '#ec4899'; displayType = 'Audio';
+            }
 
             return `
             <div class="evidence-box evidence-file d-flex align-items-center gap-3 mb-2" style="position:relative">
-                <i class="bi ${icon}" style="font-size:1.4rem;flex-shrink:0"></i>
+                <i class="bi ${icon}" style="font-size:1.4rem;flex-shrink:0;color:${color}"></i>
                 <div style="flex:1">
                     <div style="font-weight:600;font-size:.88rem">${ev.fileName}</div>
-                    <div style="font-size:.75rem;color:var(--clr-muted)">${type}</div>
+                    <div style="font-size:.75rem;color:var(--clr-muted)">${displayType}</div>
                 </div>
                 <div class="file-actions d-flex gap-2">
                     <a href="${ev.filePath}" target="_blank" class="btn-cms btn-outline-cms py-1 px-2" style="font-size:.75rem" title="Open preview">
@@ -322,6 +341,17 @@
         <div class="p-3 bg-white border rounded-3">
             <h6 class="fw-bold mb-1">${resolution.title}</h6>
             <p class="mb-0 small text-muted">${resolution.description}</p>
+            ${resolution.documentPath ? `
+                <div class="mt-3 p-2 bg-light rounded d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-file-earmark-pdf-fill text-danger" style="font-size:1.2rem"></i>
+                        <span class="small fw-semibold">${resolution.documentName || 'Resolution Document'}</span>
+                    </div>
+                    <a href="${resolution.documentPath}" target="_blank" class="btn btn-sm btn-primary py-1" download>
+                        <i class="bi bi-download me-1"></i>Download
+                    </a>
+                </div>
+            ` : ''}
         </div>
     </div>` : '';
 
@@ -346,9 +376,25 @@
             <p style="font-size:.88rem;line-height:1.75;color:var(--clr-text)">${c.description}</p>
 
             <!-- Evidence/Documents -->
-            <div class="divider"></div>
             <div class="cms-card-title mb-2"><i class="bi bi-paperclip me-2"></i>Evidence & Documents</div>
             ${evidenceHTML}
+
+            <!-- AI Summary section -->
+            <div class="divider"></div>
+            <div class="cms-card mb-3 shadow-none border-0 p-0" id="ai-summary-container">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="cms-card-title m-0"><i class="bi bi-robot me-2 text-primary"></i>AI Complaint Summary</div>
+                    <button class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size:0.75rem" onclick="regenerateAiSummary()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Regenerate
+                    </button>
+                </div>
+                <div id="ai-summary-content" class="p-3 rounded-3" style="background:#f8fafc; border:1px solid #e2e8f0;">
+                    <div class="text-center py-2 text-muted" id="ai-loading">
+                        <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                        <span style="font-size:0.85rem">Analyzing complaint and evidence...</span>
+                    </div>
+                </div>
+            </div>
 
             <!-- Resolution section -->
             ${resolutionHTML}
@@ -366,7 +412,8 @@
         <div class="cms-card mb-3">
             <div class="cms-card-title mb-3">Actions</div>
             <div class="action-grid">
-                ${canApprove ? `<button class="btn-cms btn-success-cms" onclick="new bootstrap.Modal(document.getElementById('approveModal')).show()"><i class="bi bi-check-circle me-1"></i>Approve</button>` : ''}
+                ${canApprove ? `<button class="btn-cms btn-success-cms" onclick="doApprove()"><i class="bi bi-check-circle me-1"></i>Quick Approve</button>` : ''}
+                ${canApprove ? `<button class="btn-cms btn-outline-cms" onclick="new bootstrap.Modal(document.getElementById('approveModal')).show()"><i class="bi bi-send me-1"></i>Approve & Forward</button>` : ''}
                 ${canApprove ? `<button class="btn-cms btn-danger-cms" onclick="new bootstrap.Modal(document.getElementById('rejectModal')).show()"><i class="bi bi-x-circle me-1"></i>Reject</button>` : ''}
                 ${canForward && !canApprove ? `<button class="btn-cms btn-primary-cms" onclick="new bootstrap.Modal(document.getElementById('approveModal')).show()"><i class="bi bi-send me-1"></i>Forward to Company</button>` : ''}
                 ${canStartInv ? `<button class="btn-cms btn-purple-cms" onclick="doStartInvestigation()"><i class="bi bi-search me-1"></i>Start Investigation</button>` : ''}
@@ -491,6 +538,45 @@
       bootstrap.Modal.getInstance(document.getElementById('resolveRejectModal')).hide();
       showToast('Resolution rejected. Company must resubmit.', 'info');
       setTimeout(() => { load(); updateNotifBadge(); }, 400);
+    }
+
+    async function fetchAiSummary() {
+        const el = document.getElementById('ai-summary-content');
+        try {
+            const resp = await fetch(`/api/complaints/${complaintId}/ai-summary`);
+            if (resp.ok) {
+                const data = await resp.json();
+                el.innerHTML = `<p class="mb-0" style="font-size:0.88rem; line-height:1.6; color:#334155;">${data.summary}</p>`;
+            } else {
+                el.innerHTML = `<span class="text-danger small">Failed to load AI summary.</span>`;
+            }
+        } catch (e) {
+            el.innerHTML = `<span class="text-danger small">Error connecting to AI service.</span>`;
+        }
+    }
+
+    async function regenerateAiSummary() {
+        const el = document.getElementById('ai-summary-content');
+        el.innerHTML = `
+            <div class="text-center py-2 text-muted">
+                <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                <span style="font-size:0.85rem">Regenerating summary...</span>
+            </div>`;
+        
+        try {
+            const resp = await fetch(`/api/complaints/${complaintId}/ai-summary/regenerate`, { method: 'POST' });
+            if (resp.ok) {
+                const data = await resp.json();
+                el.innerHTML = `<p class="mb-0" style="font-size:0.88rem; line-height:1.6; color:#334155;">${data.summary}</p>`;
+                showToast('AI Summary updated!', 'success');
+            } else {
+                showToast('Failed to regenerate summary.', 'error');
+                fetchAiSummary();
+            }
+        } catch (e) {
+            showToast('Connection error.', 'error');
+            fetchAiSummary();
+        }
     }
 
     function toggleNotifPanel() {

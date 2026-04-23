@@ -12,6 +12,11 @@ import java.time.LocalDateTime;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 
 import com.complaintplatform.backend.repository.CompanyEmployeeRepository;
 import com.complaintplatform.backend.repository.CompanyRepository;
@@ -24,6 +29,11 @@ public class UnifiedAuthController {
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private CompanyEmployeeRepository companyEmployeeRepository;
     @Autowired private CompanyRepository companyRepository;
+
+    @GetMapping("/debug/employees")
+    public ResponseEntity<?> debugEmployees() {
+        return ResponseEntity.ok(companyEmployeeRepository.findAll());
+    }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody Map<String, String> request) {
@@ -105,18 +115,69 @@ public class UnifiedAuthController {
                 return ResponseEntity.status(403).body(Map.of("message", "Your account is pending approval by the Super Admin."));
             }
 
-            Map<String, Object> resp = new HashMap<>();
-            resp.put("id", user.getId());
-            resp.put("username", user.getUsername());
-            resp.put("fullName", user.getFullName());
-            resp.put("role", user.getRole().name());
-            resp.put("companyId", user.getCompanyId());
-            resp.put("companyName", user.getCompanyName());
-            resp.put("department", user.getDepartment());
-            resp.put("profileImageUrl", user.getProfileImageUrl());
-            return ResponseEntity.ok(resp);
+            return ResponseEntity.ok(buildSessionMap(user));
         }
         return ResponseEntity.status(401).body(Map.of("message", "Invalid credentials"));
+    }
+
+    @Value("${google.client.id:275638293160-fbnt7thi76uqtc50cg3bqluau2dpmfpf.apps.googleusercontent.com}")
+    private String googleClientId;
+
+    @PostMapping("/google")
+    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> request) {
+        String idTokenString = request.get("credential");
+        if (idTokenString == null || idTokenString.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "ID Token is missing."));
+        }
+
+        try {
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
+                .setAudience(Collections.singletonList(googleClientId))
+                .build();
+
+            GoogleIdToken idToken = verifier.verify(idTokenString);
+            if (idToken != null) {
+                Payload payload = idToken.getPayload();
+                String email = payload.getEmail();
+                
+                // Requirement 2: Check if email exists in DB
+                Optional<User> userOpt = userRepository.findAll().stream()
+                    .filter(u -> email != null && email.equalsIgnoreCase(u.getEmail()))
+                    .findFirst();
+
+                if (userOpt.isPresent()) {
+                    User user = userOpt.get();
+                    if (!user.isEnabled()) {
+                        return ResponseEntity.status(403).body(Map.of("message", "Your account is pending approval."));
+                    }
+                    // Requirement 3 & 4: Log in with DB role and build session
+                    return ResponseEntity.ok(buildSessionMap(user));
+                } else {
+                    // Requirement 5: Reject if not found
+                    return ResponseEntity.status(401).body(Map.of("message", "This Google account ("+email+") is not registered in the system."));
+                }
+            } else {
+                return ResponseEntity.status(401).body(Map.of("message", "Invalid Google ID Token."));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", "Authentication error: " + e.getMessage()));
+        }
+    }
+
+    private Map<String, Object> buildSessionMap(User user) {
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("id", user.getId());
+        resp.put("username", user.getUsername());
+        resp.put("fullName", user.getFullName());
+        resp.put("role", user.getRole().name());
+        resp.put("companyId", user.getCompanyId());
+        resp.put("companyName", user.getCompanyName());
+        resp.put("department", user.getDepartment());
+        resp.put("profileImageUrl", user.getProfileImageUrl());
+        resp.put("nic", user.getNic());
+        resp.put("registrationNumber", user.getRegistrationNumber());
+        resp.put("email", user.getEmail());
+        return resp;
     }
 
     @Autowired private EmailService emailService;
@@ -210,17 +271,20 @@ public class UnifiedAuthController {
                      Long.parseLong(String.valueOf(request.get("id")));
         
         String newName = (String) request.get("fullName");
+        String newEmail = (String) request.get("email");
         String newPassword = (String) request.get("password");
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found: " + userId));
 
         if (newName != null && !newName.isBlank()) user.setFullName(newName);
+        if (newEmail != null && !newEmail.isBlank()) user.setEmail(newEmail);
         if (newPassword != null && !newPassword.isBlank()) user.setPassword(passwordEncoder.encode(newPassword));
 
         User saved = userRepository.save(user);
         Map<String, Object> respData = new HashMap<>();
         respData.put("fullName", saved.getFullName());
+        respData.put("email", saved.getEmail());
         respData.put("profileImageUrl", saved.getProfileImageUrl());
         respData.put("success", true);
         return ResponseEntity.ok(respData);

@@ -104,6 +104,16 @@ public class DatabaseSeeder {
             System.out.println("SEEDER: Created slt_admin (Company@123)");
         }
 
+        // Add Adeesha for Forgot Password testing
+        if (userRepo.findByUsername("adeesha").isEmpty()) {
+            User u = new User();
+            u.setUsername("adeesha"); u.setFullName("Adeesha"); u.setRole(User.Role.EMPLOYEE);
+            u.setEmail("adeeshahimal2002@gmail.com"); u.setPassword(encoder.encode("Temp@123"));
+            u.setCompanyName("ABC Garments"); u.setEnabled(true);
+            userRepo.save(u);
+            System.out.println("SEEDER: Created test user 'adeesha' with email adeeshahimal2002@gmail.com");
+        }
+
         if (le != null && userRepo.findByUsername("le_admin").isEmpty()) {
             User ca = new User();
             ca.setUsername("le_admin"); ca.setFullName("LE Admin"); ca.setRole(User.Role.COMPANY_ADMIN);
@@ -123,6 +133,16 @@ public class DatabaseSeeder {
             System.out.println("SEEDER: Created slt_tech (Dept@123)");
         }
 
+        if (slt != null && userRepo.findByUsername("slt_finance").isEmpty()) {
+            User du = new User();
+            du.setUsername("slt_finance"); du.setFullName("SLT Finance Portal"); du.setRole(User.Role.DEPT_USER);
+            du.setDepartment("Finance");
+            du.setCompanyId(slt.getId()); du.setCompanyName(slt.getName());
+            du.setPassword(encoder.encode("Dept@123")); du.setEnabled(true);
+            userRepo.save(du);
+            System.out.println("SEEDER: Created slt_finance (Dept@123)");
+        }
+
         if (le != null && userRepo.findByUsername("le_tech").isEmpty()) {
             User du = new User();
             du.setUsername("le_tech"); du.setFullName("LE Technical Portal"); du.setRole(User.Role.DEPT_USER);
@@ -135,11 +155,13 @@ public class DatabaseSeeder {
     }
 
     private void seedVerificationData(CompanyEmployeeRepository repo) {
+        repo.deleteAll();
         String[][] raw = {
-            {"Sahan Perera", "123456789V", "EMP-ABC-001", "ABC Garments"},
-            {"Nalin Silva", "987654321V", "EMP-SLT-055", "SLT Digital"},
-            {"Priyantha Raj", "456789123V", "EMP-LE-102", "Lanka Electronics"},
-            {"Amara Fernando", "789123456V", "EMP-QS-99", "QuickShop.lk"}
+            {"Adeesha", "554433221V", "EMP-ADE-001", "ABC Garments"},
+            {"Nimal Perera", "123456789V", "EMP-001", "SLT Digital"},
+            {"Sunil Silva", "987654321V", "EMP-002", "Lanka Electronics"},
+            {"Kamala J.", "112233445V", "EMP-003", "QuickShop.lk"},
+            {"D. Perera", "556677889V", "EMP-004", "ABC Garments"}
         };
         for (String[] r : raw) {
             CompanyEmployee ce = new CompanyEmployee();

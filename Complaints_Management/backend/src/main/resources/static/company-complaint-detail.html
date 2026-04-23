@@ -18,6 +18,7 @@
     </style>
 </head>
 <body class="bg-light">
+    <div id="toast-container"></div>
 
     <nav class="sidebar">
         <div class="sidebar-brand">Company Admin</div>
@@ -196,7 +197,7 @@
                             ${latestRes.documentPath ? `
                                 <div class="p-2 bg-light rounded d-flex align-items-center gap-2">
                                     <i class="bi bi-file-earmark-check text-success"></i>
-                                    <a href="${latestRes.documentPath}" target="_blank" class="small fw-bold">View Attached Fix</a>
+                                    <span class="small text-muted italic">Attached document available for Platform Admins only</span>
                                 </div>
                             ` : ''}
                         </div>
@@ -209,10 +210,7 @@
                 if (c.status === 'VIEWED' || c.status === 'APPROVED') {
                     actionsCont.innerHTML = `<button class="btn btn-primary w-100" onclick="openForwardModal()">Forward to Department</button>`;
                 } else if (c.status === 'RESOLUTION_SENT') {
-                    actionsCont.innerHTML = `
-                        <button class="btn btn-success flex-fill" onclick="decideResolution('approve')">Accept Resolution</button>
-                        <button class="btn btn-outline-danger flex-fill" onclick="decideResolution('reject')">Reject Resolution</button>
-                    `;
+                    actionsCont.innerHTML = `<p class="text-info small"><i class="bi bi-info-circle me-1"></i> Resolution has been submitted. Awaiting Platform Admin decision.</p>`;
                 } else if (c.status === 'FORWARDED' || c.status === 'IN_PROGRESS') {
                      actionsCont.innerHTML = `<p class="text-muted small">Forwarded to department. Awaiting resolution.</p>`;
                 } else {
@@ -224,7 +222,7 @@
 
             } catch (err) {
                 console.error(err);
-                alert("Could not load case details.");
+                showToast("Could not load case details.", "error");
             }
         }
 
@@ -238,7 +236,7 @@
                     users.map(u => `<option value="${u.id}">${u.department || u.fullName} (User: ${u.username})</option>`).join('');
                 new bootstrap.Modal(document.getElementById('forwardModal')).show();
             } else {
-                alert("Could not load departments portals.");
+                showToast("Could not load departments portals.", "error");
             }
         }
 
@@ -246,7 +244,7 @@
             const select = document.getElementById('dept-select');
             const deptId = select.value;
             const deptName = select.selectedIndex !== -1 ? select.options[select.selectedIndex].text : "";
-            if (!deptId) return alert("Select a department");
+            if (!deptId) return showToast("Select a department", "warning");
 
             const res = await fetch(`/api/complaints/${complaintId}/forward-to-dept?userId=${session.id}`, { 
                 method: 'POST',
@@ -257,10 +255,10 @@
                 })
             });
             if (res.ok) {
-                alert("Successfully forwarded to department.");
-                window.location.reload();
+                showToast("Successfully forwarded to department.", "success");
+                setTimeout(() => window.location.reload(), 1500);
             } else {
-                alert("Failed to forward.");
+                showToast("Failed to forward.", "error");
             }
         }
         async function decideResolution(type) {
@@ -277,10 +275,10 @@
             });
 
             if (res.ok) {
-                alert(`Resolution ${type === 'approve' ? 'Accepted' : 'Rejected'}.`);
-                window.location.reload();
+                showToast(`Resolution ${type === 'approve' ? 'Accepted' : 'Rejected'}.`, "success");
+                setTimeout(() => window.location.reload(), 1500);
             } else {
-                alert("Failed to process decision.");
+                showToast("Failed to process decision.", "error");
             }
         }
     </script>

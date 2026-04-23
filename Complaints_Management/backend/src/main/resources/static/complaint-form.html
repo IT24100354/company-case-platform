@@ -3,351 +3,597 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Submit New Complaint - CMS</title>
+    <title>Complaint Form – CMS</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="assets/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <style>
-        .form-container { max-width: 800px; margin: 40px auto; padding: 30px; background: #fff; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
-        .form-label { font-weight: 600; color: #475569; margin-bottom: 8px; }
-        .form-control, .form-select { border-radius: 10px; padding: 12px; border: 1px solid #e2e8f0; }
-        .form-control:focus { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,0.1); }
-        .btn-submit { padding: 12px 30px; border-radius: 10px; font-weight: 700; transition: 0.3s; }
-        .preview-area { margin-top: 10px; font-size: 0.85rem; color: #64748b; }
+        :root {
+            --clr-primary: #2563eb;
+            --clr-bg: #f1f5f9;
+            --clr-surface: #ffffff;
+            --clr-border: #e2e8f0;
+            --clr-text: #1e293b;
+            --clr-muted: #64748b;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        body { background: var(--clr-bg); font-family: 'Inter', sans-serif; color: var(--clr-text); }
+        .form-card { 
+            max-width: 1000px; margin: 40px auto; background: var(--clr-surface); 
+            border-radius: 24px; box-shadow: var(--shadow); border: 1px solid var(--clr-border); padding: 3rem;
+        }
+        .banner { background: #eff6ff; color: #1d4ed8; padding: 1rem 1.5rem; border-radius: 12px; font-weight: 700; border: 1.5px solid #dbeafe; display: flex; align-items: center; gap: 10px; margin-bottom: 2rem; }
+        .form-label { font-weight: 600; font-size: 0.88rem; color: #475569; margin-bottom: 6px; }
+        .form-control, .form-select { border-radius: 10px; padding: 10px 12px; border: 1px solid #cbd5e1; font-size: 0.93rem; }
+        .form-control:focus, .form-select:focus { border-color: var(--clr-primary); box-shadow: 0 0 0 4px rgba(37,99,235,0.1); }
+        .char-counter { font-size: 0.72rem; color: var(--clr-muted); margin-top: 5px; text-align: right; }
+        .other-field-container { margin-top: 10px; animation: slideDown 0.3s ease-out; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .btn-submit { background: var(--clr-primary); color: #fff; padding: 0.9rem; border-radius: 10px; font-weight: 700; transition: 0.3s; border: none; }
+        .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+        .section-title { font-size: 1.1rem; font-weight: 800; color: #0f172a; border-bottom: 2px solid var(--clr-border); padding-bottom: 10px; margin-bottom: 1.5rem; margin-top: 2.5rem; display: flex; align-items: center; gap: 10px; }
+        .section-title i { color: var(--clr-primary); }
+
+        /* Evidence Styles */
+        .drop-zone { border: 2px dashed var(--clr-border); border-radius: 12px; padding: 2rem; text-align: center; transition: 0.3s; cursor: pointer; background: #fbfcfd; }
+        .drop-zone:hover { border-color: var(--clr-primary); background: #f0f7ff; }
+        .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
+        .preview-item { border: 1px solid var(--clr-border); border-radius: 12px; overflow: hidden; background: #fff; position: relative; }
+        .preview-img { width: 100%; height: 120px; object-fit: cover; }
+        .preview-item .remove-btn { 
+            position: absolute; top: 6px; right: 6px; background: rgba(255,255,255,0.95); 
+            border: none; border-radius: 50%; color: #e11d48; width: 26px; height: 26px; 
+            font-size: 14px; display: flex; align-items: center; justify-content: center; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 10; cursor: pointer;
+        }
+        .comment-field { padding: 6px; font-size: 0.75rem; border: none; width: 100%; outline: none; border-top: 1px solid var(--clr-border); }
+
+        /* Toast Styles */
+        .toast-item {
+            background: #fff; border-radius: 12px; padding: 12px 20px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); 
+            display: flex; align-items: center; gap: 12px; font-size: 0.88rem; font-weight: 600; min-width: 300px;
+            border-left: 5px solid #2563eb; animation: slideIn 0.3s ease forwards;
+        }
+        .toast-success { border-left-color: #4ade80; }
+        .toast-error { border-left-color: #f87171; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes fadeOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
     </style>
 </head>
-<body class="bg-light">
+<body>
+<div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>
 
-<div class="container">
-    <div class="form-container">
-        <!-- Success Banner -->
-        <div id="successBanner" class="alert alert-success d-none mb-4" role="alert">
-            <i class="bi bi-check-circle-fill me-2"></i> Complaint submitted successfully! Redirecting...
+<div class="container py-4">
+    <div class="form-card">
+        <div id="statusAlert" class="alert d-none mb-4" role="alert"></div>
+
+        <div class="d-flex justify-content-between align-items-start mb-4">
+            <div>
+                <h2 id="pageHeading" class="fw-bold mb-1">New Complaint Case</h2>
+                <p class="text-muted small">Please provide precise details for a faster resolution</p>
+            </div>
+            <button class="btn btn-light btn-sm text-muted rounded-pill px-3" onclick="goBack()"><i class="bi bi-x-lg me-1"></i> Cancel</button>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h3 class="mb-0">New Complaint Submission</h3>
-            <button class="btn btn-outline-secondary btn-sm" onclick="goBack()"><i class="bi bi-arrow-left"></i> Cancel</button>
+        <div id="employeeBanner" class="banner d-none">
+            <i class="bi bi-building"></i>
+            <span>Institutional Complaint: <span id="companyNameBanner">My Company</span></span>
         </div>
 
-        <form id="complaintForm" enctype="multipart/form-data">
-            <div class="row g-3">
-                <div class="col-md-12">
-                    <label class="form-label">Complaint Title</label>
-                    <input type="text" id="title" class="form-control" placeholder="Short summary of the issue" required>
+        <form id="complaintForm">
+            <div class="row g-4">
+                <div class="col-12">
+                    <label class="form-label" for="title">Title / Summary <span class="text-danger">*</span></label>
+                    <input type="text" id="title" class="form-control" placeholder="Summarize your issue" required>
                 </div>
 
-                <div class="col-md-12">
-                    <label class="form-label">Detailed Description</label>
-                    <textarea id="description" class="form-control" rows="5" placeholder="Provide as much detail as possible..." required></textarea>
+                <div id="companySelectContainer" class="col-md-12 d-none">
+                    <label class="form-label" for="companySelect">Affected Institution / Company <span class="text-danger">*</span></label>
+                    <select id="companySelect" class="form-select">
+                        <option value="">Select Company...</option>
+                    </select>
+                </div>
+
+                <div id="employeeFields" class="row g-4 m-0 d-none">
+                    <div class="col-md-6">
+                        <label class="form-label" for="empDept">Department <span class="text-danger">*</span></label>
+                        <select id="empDept" class="form-select" onchange="toggleOtherField('empDept', 'otherDeptItem')">
+                            <option value="">Select Department</option>
+                            <option value="HR">HR</option><option value="Finance">Finance</option><option value="IT">IT</option><option value="Other">Other</option>
+                        </select>
+                        <div id="otherDeptItem" class="other-field-container d-none"><input type="text" id="otherDept" class="form-control" placeholder="Specify Dept"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="empCat">Category <span class="text-danger">*</span></label>
+                        <select id="empCat" class="form-select" onchange="toggleOtherField('empCat', 'otherCatItem')">
+                            <option value="">Select Category</option>
+                            <option value="Salary">Salary</option><option value="Harassment">Harassment</option><option value="Other">Other</option>
+                        </select>
+                        <div id="otherCatItem" class="other-field-container d-none"><input type="text" id="otherCat" class="form-control" placeholder="Specify Category"></div>
+                    </div>
+                </div>
+
+                <div id="customerFields" class="row g-4 m-0 d-none">
+                    <div class="col-md-4">
+                        <label class="form-label" for="custCat">Category <span class="text-danger">*</span></label>
+                        <select id="custCat" class="form-select" onchange="toggleOtherField('custCat', 'otherCatItemCust')">
+                            <option value="">Select Category</option>
+                            <option value="Product">Product</option><option value="Service">Service</option><option value="Other">Other</option>
+                        </select>
+                        <div id="otherCatItemCust" class="other-field-container d-none"><input type="text" id="otherCatCust" class="form-control" placeholder="Specify Category"></div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="custDept">Department <span class="text-danger">*</span></label>
+                        <select id="custDept" class="form-select">
+                            <option value="">Select Department</option>
+                            <option value="HR">HR</option><option value="Finance">Finance</option><option value="IT">IT</option><option value="Sales">Sales</option><option value="Support">Support</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="orderRef">Order Ref # (Optional)</label>
+                        <input type="text" id="orderRef" class="form-control">
+                    </div>
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">Company</label>
-                    <select id="companySelect" class="form-select" onchange="loadDepartments()">
-                        <option value="">Select Company</option>
-                    </select>
-                    <input type="hidden" id="companyIdHidden">
-                    <input type="text" id="companyDisplay" class="form-control" disabled style="display:none">
-                    <div class="invalid-feedback text-danger" id="companyError" style="display:none">Please select a company.</div>
+                    <label class="form-label" for="dateOfIncident">Date of Incident <span class="text-danger">*</span></label>
+                    <input type="date" id="dateOfIncident" class="form-control" required>
+                </div>
+
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-end mb-1">
+                        <label class="form-label mb-0" for="description">Detailed Description <span class="text-danger">*</span></label>
+                        <div id="charCount" class="char-counter">0 / 400</div>
+                    </div>
+                    <textarea id="description" class="form-control" rows="4" maxlength="400" required oninput="updateCharCount(this)"></textarea>
+                </div>
+
+                <div id="solutionFields" class="col-12 d-none">
+                    <div class="form-label">Desired Resolution <span class="text-danger">*</span></div>
+                    <div class="d-flex gap-3 flex-wrap">
+                        <div class="form-check"><input type="radio" name="solution" value="Exchange" id="solExchange" class="form-check-input" onchange="toggleSolOther()"><label for="solExchange">Exchange</label></div>
+                        <div class="form-check"><input type="radio" name="solution" value="Refund" id="solRefund" class="form-check-input" onchange="toggleSolOther()"><label for="solRefund">Refund</label></div>
+                        <div class="form-check"><input type="radio" name="solution" value="Repair" id="solRepair" class="form-check-input" onchange="toggleSolOther()"><label for="solRepair">Repair</label></div>
+                        <div class="form-check"><input type="radio" name="solution" value="Other" id="solOtherRadio" class="form-check-input" onchange="toggleSolOther()"><label for="solOtherRadio">Other</label></div>
+                    </div>
+                    <div id="otherSolutionItem" class="other-field-container d-none"><input type="text" id="otherSolution" class="form-control" placeholder="Details..."></div>
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label">Department</label>
-                    <select id="departmentSelect" class="form-select">
-                        <option value="">Select Department</option>
-                    </select>
-                    <div class="invalid-feedback text-danger" id="deptError" style="display:none">Please select a department.</div>
+                    <label class="form-label" for="witnessName">Witness Name</label>
+                    <input type="text" id="witnessName" class="form-control">
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                    <div class="form-check pb-2"><input type="checkbox" id="urgencyCheck" class="form-check-input"><label for="urgencyCheck" class="form-check-label small fw-bold">High Urgency</label></div>
                 </div>
 
-                <div class="divider my-4"></div>
-                <h5 class="mb-3">Evidence Uploads (Optional)</h5>
+                <!-- NEW: Integrated Evidence Section -->
+                <div class="col-12">
+                    <div class="section-title"><i class="bi bi-camera-fill"></i> Evidence & Media</div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label" for="fileInput">Upload New Photos/Docs</label>
+                        <div class="drop-zone" onclick="document.getElementById('fileInput').click()">
+                            <i class="bi bi-cloud-arrow-up fs-3 text-muted"></i>
+                            <p class="mb-0 small fw-bold">Click or Drag & Drop</p>
+                            <input type="file" id="fileInput" multiple accept="image/*,application/pdf,.doc,.docx,.zip,.rar" class="d-none" onchange="handleFileSelect(event)">
+                        </div>
+                        <div id="newPreviewGrid" class="preview-grid"></div>
+                    </div>
 
-                <div class="col-md-4">
-                    <label class="form-label"><i class="bi bi-file-earmark-image me-1"></i> Documents/Images</label>
-                    <input type="file" id="documentFile" class="form-control" accept=".png,.jpg,.jpeg,.pdf">
-                    <small class="text-muted">PNG, JPG, PDF</small>
-                </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="videoLink">Video Evidence Link</label>
+                        <input type="url" id="videoLink" class="form-control" placeholder="https://youtube.com/..." oninput="this.classList.remove('is-invalid')">
+                        <div class="invalid-feedback">Link must start with http:// or https://</div>
+                    </div>
 
-                <div class="col-md-4">
-                    <label class="form-label"><i class="bi bi-camera-video me-1"></i> Video Recording</label>
-                    <input type="file" id="videoFile" class="form-control" accept=".mp4">
-                    <small class="text-muted">MP4 only</small>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label"><i class="bi bi-mic me-1"></i> Voice Recording</label>
-                    <input type="file" id="voiceFile" class="form-control" accept=".mp3,.wav,.m4a">
-                    <small class="text-muted">MP3, WAV, M4A</small>
-                </div>
-
-                <div class="col-12 mt-4">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="termsCheck">
-                        <label class="form-check-label" for="termsCheck">
-                            I accept the <strong>Terms and Conditions</strong> for submitting this complaint.
-                        </label>
-                        <div class="invalid-feedback text-danger" id="termsError" style="display:none">Please accept the terms and conditions before submitting.</div>
+                    <div id="existingEvidenceBox" class="mt-4 d-none">
+                        <div class="form-label fw-bold text-primary small">Current Evidence (Click trash to remove)</div>
+                        <div id="existingPreviewGrid" class="preview-grid"></div>
                     </div>
                 </div>
 
                 <div class="col-12 mt-4">
-                    <button type="submit" class="btn btn-primary btn-submit w-100" id="submitBtn">Submit Complaint</button>
+                    <button type="button" class="btn-submit w-100" id="submitBtn" onclick="showTerms()">Submit Complaint</button>
                 </div>
             </div>
         </form>
     </div>
 </div>
 
+<!-- Terms & Conditions Modal -->
+<div class="modal fade" id="termsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold"><i class="bi bi-shield-check text-primary me-2"></i>Terms & Conditions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small mb-4">By submitting this complaint, you agree to the following terms:</p>
+                <div class="bg-light p-3 rounded-2 small text-muted mb-4" style="max-height: 200px; overflow-y: auto;">
+                    1. The information provided is true and accurate.<br>
+                    2. You understand that false reports may lead to disciplinary action.<br>
+                    3. Your data will be processed according to our privacy policy.<br>
+                    4. The resolution time varies based on priority and case complexity.<br>
+                    5. You will cooperate with the investigation team if required.
+                </div>
+                <div class="form-check small mb-0">
+                    <input class="form-check-input" type="checkbox" id="modalTermsCheck">
+                    <label class="form-check-label fw-bold" for="modalTermsCheck">
+                        I have read and agree to the Terms & Conditions
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-3">
+                <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary px-4" id="confirmSubmitBtn" onclick="validateAndSubmit()">Confirm & Continue</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="assets/data-store.js"></script>
 <script>
     const session = CMS.requireAuth(['customer', 'employee']);
-
-    const params = new URLSearchParams(window.location.search);
-    const editId = params.get('editId');
     const role = (session.role || "").toUpperCase();
     const isEmployee = role === 'EMPLOYEE';
-    let companyList = [];
 
-    document.addEventListener("DOMContentLoaded", async () => {
-        await fetchCompanies();
-        setupForm();
-        
-        if (editId) {
-            document.querySelector('h3').innerText = "Edit Complaint";
-            document.getElementById('submitBtn').innerText = "Update Complaint";
-            // The file inputs are optional for edit; no need to clear 'required' on a non-existent element
-            await loadEditData();
+    const urlParams = new URLSearchParams(window.location.search);
+    const editId = urlParams.get('id');
+    const isEdit = urlParams.get('edit') === 'true';
+    
+    let newFiles = [];
+    let existingCount = 0;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        setupDates();
+        if (isEmployee) {
+            document.getElementById('employeeBanner').classList.remove('d-none');
+            document.getElementById('companyNameBanner').innerText = session.companyName;
+            document.getElementById('employeeFields').classList.remove('d-none');
+        } else {
+            document.getElementById('companySelectContainer').classList.remove('d-none');
+            document.getElementById('customerFields').classList.remove('d-none');
+            document.getElementById('solutionFields').classList.remove('d-none');
+            await fetchCompanies();
+        }
+
+        if (isEdit && editId) {
+            loadCaseData(editId);
+            document.getElementById('pageHeading').innerText = 'Edit Complaint';
+            document.getElementById('submitBtn').innerText = 'Save Changes';
         }
     });
 
-    function goBack() {
-        if (editId) {
-            window.location.href = `complaint-view.html?id=${editId}`;
-            return;
+    async function loadCaseData(id) {
+        console.log("DEBUG: loadCaseData starting for ID:", id, "Session:", session);
+        try {
+            const resp = await fetch(`/api/admin/complaints/${id}?userId=${session.id}`);
+            const data = await resp.json();
+            console.log("DEBUG: Data received from backend:", data);
+            
+            document.getElementById('title').value = data.title || '';
+            
+            let desc = data.description || '';
+            // Strip legacy markers if they exist in old complaints
+            desc = desc.replace(/\n\n\[Video Evidence\]:.*$/gm, '').trim();
+            document.getElementById('description').value = desc;
+            updateCharCount(document.getElementById('description'));
+            if (data.dateOfIncident) {
+                // Handle both ISO strings and potentially simpler date strings
+                const datePart = data.dateOfIncident.includes('T') ? data.dateOfIncident.split('T')[0] : data.dateOfIncident;
+                document.getElementById('dateOfIncident').value = datePart;
+            }
+            document.getElementById('witnessName').value = data.witnessName || '';
+            document.getElementById('urgencyCheck').checked = data.urgency || false;
+            document.getElementById('videoLink').value = data.videoLink || '';
+
+            if (isEmployee) {
+                setSelectValue('empDept', data.department, 'otherDept', data.otherDepartment, 'otherDeptItem');
+                setSelectValue('empCat', data.category, 'otherCat', data.otherCategory, 'otherCatItem');
+            } else {
+                document.getElementById('companySelect').value = data.companyId || '';
+                setSelectValue('custCat', data.category, 'otherCatCust', data.otherCategory, 'otherCatItemCust');
+                console.log("DEBUG: Setting custDept to:", data.department);
+                document.getElementById('custDept').value = data.department || '';
+                document.getElementById('orderRef').value = data.orderReference || '';
+                
+                // Load Desired Resolution
+                if (data.desiredSolution) {
+                    console.log("DEBUG: Setting Desired Solution:", data.desiredSolution);
+                    const solMap = { 'Exchange': 'solExchange', 'Refund': 'solRefund', 'Repair': 'solRepair', 'Other': 'solOtherRadio' };
+                    const rid = solMap[data.desiredSolution];
+                    if (rid) { 
+                        document.getElementById(rid).checked = true;
+                        if (data.desiredSolution === 'Other') {
+                            document.getElementById('otherSolutionItem').classList.remove('d-none');
+                            document.getElementById('otherSolution').value = data.otherSolution || '';
+                        }
+                    }
+                }
+            }
+            console.log("DEBUG: loadCaseData finished successfully.");
+
+            // Load Evidence
+            await loadEvidence();
+        } catch (e) {
+            console.error("DEBUG: loadCaseData Error:", e);
         }
-        if (role === 'EMPLOYEE') window.location.href = 'employee-dashboard.html';
-        else if (role === 'ADMIN') window.location.href = 'admin-dashboard.html';
-        else if (role === 'SUPER_ADMIN') window.location.href = 'super-admin-dashboard.html';
-        else window.location.href = 'customer-dashboard.html';
+    }
+
+    console.log("Complaint form script initialized. Mode:", isEdit ? "Edit" : "New");
+
+    async function loadEvidence() {
+        try {
+            const evResp = await fetch(`/api/complaints/${editId}/evidence?userId=${session.id}&_t=${Date.now()}`);
+            const evList = await evResp.json();
+            const grid = document.getElementById('existingPreviewGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            
+            if (Array.isArray(evList) && evList.length > 0) {
+                document.getElementById('existingEvidenceBox').classList.remove('d-none');
+                evList.forEach(ev => {
+                    const div = document.createElement('div');
+                    div.className = 'preview-item';
+                    div.innerHTML = `
+                        <button type="button" class="remove-btn" style="cursor:pointer" onclick="deleteExisting(${ev.id}, event)"><i class="bi bi-trash-fill" style="pointer-events:none"></i></button>
+                        <img src="${ev.filePath}" class="preview-img">
+                    `;
+                    grid.appendChild(div);
+                });
+            } else {
+                document.getElementById('existingEvidenceBox').classList.add('d-none');
+            }
+        } catch (e) {
+            console.error("Failed to load evidence", e);
+        }
+    }
+
+    async function deleteExisting(evId, event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        console.log("LOG: deleteExisting EXECUTION START for Evidence ID:", evId);
+        
+        try {
+            const url = `/api/complaints/${editId}/evidence/${evId}?userId=${session.id}`;
+            console.log("LOG: Sending DELETE to:", url);
+            
+            const res = await fetch(url, { method: 'DELETE' });
+            console.log("LOG: Server response status:", res.status);
+            
+            if (res.ok) {
+                console.log("LOG: Deletion success on server. Updating UI...");
+                await loadEvidence();
+            } else {
+                const text = await res.text();
+                console.error("LOG: Server error:", text);
+                alert("Server Error: " + text);
+            }
+        } catch (e) {
+            console.error("LOG: Network/Fetch error:", e);
+            alert("Network error: " + e.message);
+        }
+    }
+
+    function handleFileSelect(e) {
+        const files = Array.from(e.target.files);
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (loadEv) => {
+                const id = Date.now() + Math.random();
+                newFiles.push({ id, file, preview: loadEv.target.result, comment: '' });
+                renderNewPreviews();
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function renderNewPreviews() {
+        const grid = document.getElementById('newPreviewGrid');
+        grid.innerHTML = '';
+        newFiles.forEach(f => {
+            const isImg = f.file.type.startsWith('image/');
+            const div = document.createElement('div');
+            div.className = 'preview-item';
+            
+            let previewHTML = '';
+            if (isImg) {
+                previewHTML = `<img src="${f.preview}" class="preview-img">`;
+            } else {
+                let icon = 'bi-file-earmark-text';
+                let color = '#64748b';
+                if (f.file.type.includes('pdf')) { icon = 'bi-file-earmark-pdf-fill'; color = '#ef4444'; }
+                else if (f.file.type.includes('word') || f.file.name.endsWith('.doc') || f.file.name.endsWith('.docx')) { icon = 'bi-file-earmark-word-fill'; color = '#2563eb'; }
+                else if (f.file.type.includes('zip') || f.file.name.endsWith('.zip') || f.file.name.endsWith('.rar')) { icon = 'bi-file-earmark-zip-fill'; color = '#f59e0b'; }
+                
+                previewHTML = `
+                    <div class="preview-img d-flex flex-column align-items-center justify-content-center bg-light" style="height: 120px;">
+                        <i class="bi ${icon} fs-1" style="color: ${color}"></i>
+                        <div class="px-2 w-100 text-truncate text-center small mt-1" style="font-size: 0.65rem;">${f.file.name}</div>
+                    </div>`;
+            }
+
+            div.innerHTML = `
+                <button type="button" class="remove-btn" onclick="removeNewFile(${f.id})"><i class="bi bi-x-circle-fill"></i></button>
+                ${previewHTML}
+                <input type="text" class="comment-field" placeholder="Note..." aria-label="Evidence comment" onchange="updateComment(${f.id}, this.value)">
+            `;
+            grid.appendChild(div);
+        });
+    }
+
+    function removeNewFile(id) { newFiles = newFiles.filter(f => f.id !== id); renderNewPreviews(); }
+    function updateComment(id, val) { const f = newFiles.find(f => f.id === id); if (f) f.comment = val; }
+
+    function setupDates() {
+        const di = document.getElementById('dateOfIncident');
+        const today = new Date();
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(today.getMonth() - 3);
+        
+        di.setAttribute('max', today.toISOString().split('T')[0]);
+        di.setAttribute('min', threeMonthsAgo.toISOString().split('T')[0]);
     }
 
     async function fetchCompanies() {
-        try {
-            const res = await fetch('/api/companies');
-            companyList = await res.json();
-        } catch (e) { console.error("Failed to load companies", e); }
-    }
-
-    function setupForm() {
+        const res = await fetch('/api/companies');
+        const list = await res.json();
         const select = document.getElementById('companySelect');
-        const display = document.getElementById('companyDisplay');
-        const hidden = document.getElementById('companyIdHidden');
+        list.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id; opt.textContent = c.name; select.appendChild(opt);
+        });
+    }
 
-        if (isEmployee) {
-            select.style.display = 'none';
-            select.required = false;
-            display.style.display = 'block';
-            display.value = session.companyName || 'Your Company';
-            hidden.value = session.companyId;
-            loadDepartments(session.companyId);
-        } else {
-            companyList.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.id;
-                opt.textContent = c.name;
-                select.appendChild(opt);
-            });
+    function setSelectValue(selectId, val, otherInputId, otherVal, itemContainerId) {
+        console.log(`DEBUG: setSelectValue for ${selectId} with val="${val}", otherVal="${otherVal}"`);
+        const sel = document.getElementById(selectId);
+        if (!sel) {
+            console.error(`DEBUG: Element ${selectId} not found`);
+            return;
         }
-    }
+        
+        const normVal = (val || "").trim();
+        // Try exact match first
+        let options = Array.from(sel.options);
+        let match = options.find(o => o.value === normVal);
+        
+        // Try case-insensitive match if no exact match
+        if (!match && normVal) {
+            match = options.find(o => o.value.toLowerCase() === normVal.toLowerCase());
+        }
 
-    async function loadDepartments(cId) {
-        const compId = cId || document.getElementById('companySelect').value;
-        const deptSelect = document.getElementById('departmentSelect');
-        deptSelect.innerHTML = '<option value="">Select Department</option>';
-        if (!compId) return;
-        try {
-            const res = await fetch(`/api/departments?companyId=${compId}`);
-            const depts = await res.json();
-            depts.forEach(d => {
-                const opt = document.createElement('option');
-                opt.value = d.name;
-                opt.textContent = d.name;
-                deptSelect.appendChild(opt);
-            });
-        } catch (e) { console.error("Failed to load departments", e); }
-    }
-
-    async function loadEditData() {
-        try {
-            const res = await fetch(`/api/complaints/${editId}?userId=${session.id}`);
-            const data = await res.json();
-            if (data.status !== 'PENDING') {
-                alert("Only PENDING complaints can be edited.");
-                goBack();
-                return;
-            }
-            document.getElementById('title').value = data.title;
-            document.getElementById('description').value = data.description;
-            if (!isEmployee) {
-                document.getElementById('companySelect').value = data.companyId;
-                await loadDepartments(data.companyId);
-            }
-            document.getElementById('departmentSelect').value = data.department;
-
-            // Fetch and show existing evidence
-            try {
-                const evRes = await fetch(`/api/admin/complaints/${editId}/evidence?userId=${session.id}`);
-                if (evRes.ok) {
-                    const evList = await evRes.json();
-                    if (evList.length > 0) {
-                        const evDiv = document.createElement('div');
-                        evDiv.id = 'existing-evidence-container';
-                        evDiv.className = 'col-12 mt-3';
-                        evDiv.innerHTML = `<h6 class="text-primary fw-bold mb-3"><i class="bi bi-paperclip"></i> Existing Evidence:</h6><div class="d-flex flex-wrap gap-3"></div>`;
-                        const listDiv = evDiv.querySelector('div');
-                        evList.forEach(ev => {
-                            const item = document.createElement('div');
-                            item.className = 'd-flex align-items-center gap-2 p-2 rounded border bg-light';
-                            item.innerHTML = `
-                                <span class="small fw-semibold text-truncate" style="max-width:150px" title="${ev.fileName}">${ev.fileName}</span>
-                                <div class="btn-group">
-                                    <a href="${ev.filePath}" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-1" title="View"><i class="bi bi-eye"></i></a>
-                                    <button type="button" class="btn btn-xs btn-outline-danger py-0 px-1" onclick="deleteExistingEvidence(${ev.id}, this)" title="Remove"><i class="bi bi-trash"></i></button>
-                                </div>
-                            `;
-                            listDiv.appendChild(item);
-                        });
-                        document.querySelector('.divider.my-4').before(evDiv);
-                    }
-                }
-            } catch (ee) { console.error("Failed to load evidence", ee); }
-
-        } catch (e) { console.error("Load failed", e); }
-    }
-
-    async function deleteExistingEvidence(evId, btn) {
-        if (!confirm("Are you sure you want to remove this file?")) return;
-        try {
-            const res = await fetch(`/api/admin/complaints/${editId}/evidence/${evId}?userId=${session.id}`, { method: 'DELETE' });
-            if (res.ok) {
-                btn.closest('.d-flex').remove();
-                showToast("File removed successfully.", "success");
-                // If last one removed, clean up header
-                const container = document.getElementById('existing-evidence-container');
-                if (container && container.querySelector('.d-flex.flex-wrap').children.length === 0) {
-                    container.remove();
-                }
+        if (match) {
+            console.log(`DEBUG: Found match for ${selectId}: ${match.value}`);
+            sel.value = match.value;
+            // Hide other container if it was open
+            if (itemContainerId) document.getElementById(itemContainerId).classList.add('d-none');
+        } else if (normVal) {
+            console.log(`DEBUG: No match for ${selectId}, checking "Other"`);
+            const otherOpt = options.find(o => o.value === 'Other');
+            if (otherOpt && itemContainerId) {
+                sel.value = 'Other';
+                document.getElementById(itemContainerId).classList.remove('d-none');
+                document.getElementById(otherInputId).value = otherVal || normVal;
             } else {
-                const data = await res.json();
-                alert("Error: " + (data.error || "Failed to delete file"));
+                console.warn(`DEBUG: No "Other" option or container for ${selectId}`);
+                sel.value = "";
             }
-        } catch (e) { console.error(e); }
-    }
-
-    function showToast(message, type = 'info') {
-        let container = document.getElementById('toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'toast-container';
-            container.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;';
-            document.body.appendChild(container);
-        }
-        const el = document.createElement('div');
-        el.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} shadow-lg`;
-        el.style.cssText = 'min-width:300px;margin-bottom:0;border-radius:12px;display:flex;align-items:center;gap:12px;animation:slideIn 0.3s ease-out;';
-        el.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : 'info-circle'}"></i><span>${message}</span>`;
-        container.appendChild(el);
-        setTimeout(() => {
-            el.style.opacity = '0';
-            el.style.transform = 'translateX(20px)';
-            el.style.transition = 'all 0.3s';
-            setTimeout(() => el.remove(), 300);
-        }, 4000);
-    }
-
-    document.getElementById('complaintForm').onsubmit = async (e) => {
-        e.preventDefault();
-        
-        // Reset errors
-        document.getElementById('companyError').style.display = 'none';
-        document.getElementById('deptError').style.display = 'none';
-        document.getElementById('termsError').style.display = 'none';
-
-        const title = document.getElementById('title').value;
-        const description = document.getElementById('description').value;
-        const dept = document.getElementById('departmentSelect').value;
-        const termsAccepted = document.getElementById('termsCheck').checked;
-        
-        let companyId = "";
-        let companyName = "";
-
-        if (isEmployee) {
-            companyId = session.companyId;
-            companyName = session.companyName;
         } else {
-            const s = document.getElementById('companySelect');
-            companyId = s.value;
-            companyName = s.selectedIndex !== -1 ? s.options[s.selectedIndex].text : "";
+            sel.value = "";
+        }
+    }
+
+    function updateCharCount(el) { document.getElementById('charCount').innerText = `${el.value.length} / 400`; }
+    function toggleOtherField(sid, tid) { document.getElementById(tid).classList.toggle('d-none', document.getElementById(sid).value !== 'Other'); }
+    function toggleSolOther() {
+        const isOther = document.getElementById('solOtherRadio').checked;
+        document.getElementById('otherSolutionItem').classList.toggle('d-none', !isOther);
+    }
+    function goBack() { window.location.href = isEmployee ? 'employee-dashboard.html' : 'customer-dashboard.html'; }
+
+    function showTerms() {
+        // Basic validation before showing modal
+        const title = document.getElementById('title').value;
+        const desc = document.getElementById('description').value;
+        const date = document.getElementById('dateOfIncident').value;
+        const video = document.getElementById('videoLink').value;
+
+        if (!title || !desc || !date) {
+            showToast("Please fill in all required fields.", "error");
+            return;
         }
 
-        // Validation
-        let hasError = false;
-        if (!companyId) { document.getElementById('companyError').style.display = 'block'; hasError = true; }
-        if (!dept) { document.getElementById('deptError').style.display = 'block'; hasError = true; }
-        if (!termsAccepted) { document.getElementById('termsError').style.display = 'block'; hasError = true; }
+        if (video && !video.startsWith('http://') && !video.startsWith('https://')) {
+            document.getElementById('videoLink').classList.add('is-invalid');
+            showToast("Invalid video link: must start with http:// or https://", "error");
+            return;
+        }
 
-        if (hasError) return;
+        const modal = new bootstrap.Modal(document.getElementById('termsModal'));
+        modal.show();
+    }
+
+    async function validateAndSubmit() {
+        if (!document.getElementById('modalTermsCheck').checked) {
+            alert("Please agree to the Terms & Conditions to continue.");
+            return;
+        }
+        const modal = bootstrap.Modal.getInstance(document.getElementById('termsModal'));
+        if (modal) modal.hide();
+        await executeSubmit();
+    }
+
+    async function executeSubmit() {
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true; btn.innerText = 'Processing...';
 
         const formData = new FormData();
         formData.append('userId', session.id);
-        formData.append('title', title);
-        formData.append('description', description);
-        formData.append('category', 'GENERAL');
-        formData.append('companyId', companyId);
-        formData.append('companyName', companyName);
-        formData.append('department', dept);
+        formData.append('title', document.getElementById('title').value);
+        formData.append('description', document.getElementById('description').value);
+        formData.append('incidentDate', document.getElementById('dateOfIncident').value);
+        formData.append('witnessName', document.getElementById('witnessName').value);
+        formData.append('urgency', document.getElementById('urgencyCheck').checked);
+        formData.append('videoLink', document.getElementById('videoLink').value);
 
-        // Files
-        const docFile = document.getElementById('documentFile').files[0];
-        const vidFile = document.getElementById('videoFile').files[0];
-        const voiFile = document.getElementById('voiceFile').files[0];
+        if (isEmployee) {
+            formData.append('companyId', session.companyId);
+            formData.append('companyName', session.companyName || '');
+            formData.append('department', document.getElementById('empDept').value);
+            formData.append('otherDepartment', document.getElementById('otherDept').value);
+            formData.append('category', document.getElementById('empCat').value);
+            formData.append('otherCategory', document.getElementById('otherCat').value);
+        } else {
+            const sel = document.getElementById('companySelect');
+            formData.append('companyId', sel.value);
+            if (sel.selectedIndex >= 0) {
+                formData.append('companyName', sel.options[sel.selectedIndex].text);
+            }
+            formData.append('category', document.getElementById('custCat').value);
+            formData.append('otherCategory', document.getElementById('otherCatCust').value);
+            formData.append('department', document.getElementById('custDept').value);
+            formData.append('orderReference', document.getElementById('orderRef').value);
+            
+            const solRadio = document.querySelector('input[name="solution"]:checked');
+            if (solRadio) {
+                formData.append('desiredSolution', solRadio.value);
+                if (solRadio.value === 'Other') {
+                    formData.append('otherSolution', document.getElementById('otherSolution').value);
+                }
+            }
+        }
 
-        if (docFile) formData.append('documentFile', docFile);
-        if (vidFile) formData.append('videoFile', vidFile);
-        if (voiFile) formData.append('voiceFile', voiFile);
+        newFiles.forEach(f => {
+            formData.append('files', f.file);
+            formData.append('comments', f.comment || '');
+        });
 
         try {
-            const url = editId ? `/api/complaints/${editId}?userId=${session.id}` : '/api/complaints/submit';
-            const method = editId ? 'PUT' : 'POST';
-
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Submitting...';
-
-            const res = await fetch(url, { method, body: formData });
-            if (!res.ok) {
-                const text = await res.text();
-                throw new Error(text || res.statusText);
-            }
-            const result = await res.json();
-            if (result.success || result.id) {
-                document.getElementById('successBanner').classList.remove('d-none');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                showToast(editId ? "Complaint updated successfully!" : "Complaint submitted successfully!", "success");
-                setTimeout(() => { goBack(); }, 1500);
+            const endpoint = isEdit ? `/api/admin/complaints/${editId}/update` : '/api/admin/complaints/submit';
+            const res = await fetch(endpoint, { method: 'POST', body: formData });
+            if (res.ok) {
+                // Success: come back to dashboard
+                showToast(isEdit ? "Complaint updated successfully!" : "Complaint submitted successfully!", "success");
+                setTimeout(() => goBack(), 1500);
             } else {
-                alert("Operation failed: " + result.message);
-                submitBtn.disabled = false;
-                submitBtn.innerText = editId ? "Update Complaint" : "Submit Complaint";
+                const text = await res.text();
+                btn.disabled = false; btn.innerText = isEdit ? 'Save Changes' : 'Submit Complaint';
+                alert("Server Error: " + text);
             }
-        } catch (err) {
-            console.error(err);
-            alert("Error: " + err.message);
-            document.getElementById('submitBtn').disabled = false;
-            document.getElementById('submitBtn').innerText = editId ? "Update Complaint" : "Submit Complaint";
+        } catch (e) {
+            btn.disabled = false; btn.innerText = isEdit ? 'Save Changes' : 'Submit Complaint';
+            alert("Network error: " + e.message);
         }
-    };
+    }
+
+    // Replace original onsubmit with nothing since we use button onclick
+    document.getElementById('complaintForm').onsubmit = (e) => e.preventDefault();
 </script>
 </body>
 </html>

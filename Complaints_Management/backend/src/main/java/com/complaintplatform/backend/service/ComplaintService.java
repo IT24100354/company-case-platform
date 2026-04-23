@@ -68,20 +68,27 @@ public class ComplaintService {
         return complaintRepo.save(c);
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public Complaint forward(Long id, String priority) {
         Complaint c = complaintRepo.findById(id).orElseThrow();
-        c.setStatus(Complaint.Status.FORWARDED);
+        c.setStatus(Complaint.Status.FORWARDED_TO_COMPANY);
         c.setForwardedAt(LocalDateTime.now());
+        if (c.getApprovedAt() == null) {
+            c.setApprovedAt(LocalDateTime.now());
+        }
         c.setPriority(priority);
-        // Calculate due date
-        int days = priority.equalsIgnoreCase("HIGH") ? 10 : (priority.equalsIgnoreCase("MEDIUM") ? 20 : 30);
+        // Calculate due date based on priority
+        int days = 30; // Default
+        if ("HIGH".equalsIgnoreCase(priority)) days = 10;
+        else if ("MEDIUM".equalsIgnoreCase(priority)) days = 20;
         c.setDueDate(LocalDateTime.now().plusDays(days));
+        System.out.println("DEBUG: Forwarding complaint " + id + " with priority " + priority + ". New Status: " + c.getStatus());
         return complaintRepo.save(c);
     }
 
     public Complaint markViewedByCompany(Long id) {
         Complaint c = complaintRepo.findById(id).orElseThrow();
-        c.setStatus(Complaint.Status.VIEWED);
+        c.setStatus(Complaint.Status.VIEWED_BY_COMPANY);
         c.setViewedByCompanyAt(LocalDateTime.now());
         return complaintRepo.save(c);
     }
@@ -89,7 +96,7 @@ public class ComplaintService {
     public Complaint sendToDepartment(Long id, Long deptUserId) {
         Complaint c = complaintRepo.findById(id).orElseThrow();
         c.setDepartmentUserId(deptUserId);
-        c.setStatus(Complaint.Status.IN_PROGRESS);
+        c.setStatus(Complaint.Status.FORWARDED_TO_DEPT);
         c.setSentToDepartmentAt(LocalDateTime.now());
         return complaintRepo.save(c);
     }
@@ -131,7 +138,7 @@ public class ComplaintService {
         resolutionRepo.save(r);
         
         Complaint c = complaintRepo.findById(r.getComplaintId()).orElseThrow();
-        c.setStatus(Complaint.Status.IN_PROGRESS); // Put back to focus
+        c.setStatus(Complaint.Status.RESOLUTION_REJECTED); 
         complaintRepo.save(c);
         
         return r;

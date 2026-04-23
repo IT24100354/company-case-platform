@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Evidence – CMS</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --clr-primary: #2563eb;
+            --clr-bg: #f8fafc;
+            --clr-surface: #ffffff;
+            --clr-border: #e2e8f0;
+            --clr-text: #1e293b;
+            --clr-muted: #64748b;
+            --clr-danger: #e11d48;
+            --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        body { background: var(--clr-bg); font-family: 'Inter', sans-serif; padding-top: 40px; color: var(--clr-text); }
+        .page-header { max-width: 800px; margin: 0 auto 2rem; display: flex; align-items: center; justify-content: space-between; }
+        .evidence-card { 
+            max-width: 800px; margin: 0 auto; background: var(--clr-surface); 
+            border-radius: 20px; box-shadow: var(--shadow); border: 1px solid var(--clr-border); padding: 2.5rem;
+        }
+        .case-pill { background: #eff6ff; color: var(--clr-primary); padding: 0.5rem 1rem; border-radius: 999px; font-weight: 700; font-size: 0.85rem; }
+        .drop-zone {
+            border: 2px dashed var(--clr-border); border-radius: 12px; padding: 2rem; text-align: center;
+            transition: 0.3s; cursor: pointer; background: #fbfcfd;
+        }
+        .drop-zone:hover { border-color: var(--clr-primary); background: #f0f7ff; }
+        .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+        .preview-item { border: 1px solid var(--clr-border); border-radius: 12px; overflow: hidden; background: #fff; position: relative; }
+        .preview-img { width: 100%; height: 140px; object-fit: cover; }
+        .preview-item .remove-btn { position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.9); border: none; border-radius: 50%; color: var(--clr-danger); width: 24px; height: 24px; font-size: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .comment-field { padding: 8px; font-size: 0.8rem; border-top: 1px solid var(--clr-border); width: 100%; border: none; outline: none; }
+        .video-box { background: #f1f5f9; border-radius: 12px; padding: 1.25rem; margin-top: 2rem; }
+        .btn-submit { background: var(--clr-primary); color: #fff; padding: 0.8rem 2rem; border-radius: 10px; font-weight: 700; border: none; transition: 0.3s; }
+        .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+        .locked-badge { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; background: #94a3b8; color: #fff; padding: 2px 8px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="page-header">
+        <div>
+            <h2 id="pageTitle" class="fw-bold mb-1">Upload Evidence</h2>
+            <p class="text-muted small mb-0">Step 2: Provide supporting documents and media</p>
+        </div>
+        <div id="casePill" class="case-pill">Case #000</div>
+    </div>
+
+    <div id="moreInfoBanner" class="alert alert-warning d-none mb-4" style="border-radius:12px; border:none; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <h6 class="fw-bold mb-1"><i class="bi bi-info-circle-fill me-2"></i> Company has requested more information</h6>
+        <p class="small mb-0">Please provide the missing details or additional evidence requested.</p>
+    </div>
+
+    <div class="evidence-card">
+        <form id="evidenceForm">
+            <div id="moreInfoTextContainer" class="mb-4 d-none">
+                <label class="form-label fw-bold small">Additional Information / Explanation</label>
+                <textarea id="additionalInfo" class="form-control" rows="3" placeholder="Describe the additional evidence or provide response..."></textarea>
+            </div>
+
+            <div class="mb-2">
+                <label class="form-label fw-bold">Add Evidence <span class="text-danger">*</span></label>
+                <p class="text-muted extra-small" style="font-size: 0.75rem;">JPG, PNG, WEBP (Max 10MB per file)</p>
+                <div class="drop-zone" onclick="document.getElementById('fileInput').click()">
+                    <i class="bi bi-cloud-arrow-up fs-2 text-muted"></i>
+                    <p class="mb-0 mt-2 fw-semibold">Click to upload or drag and drop</p>
+                    <input type="file" id="fileInput" multiple accept="image/*" class="d-none" onchange="handleFileSelect(event)">
+                </div>
+            </div>
+
+            <div id="previewGrid" class="preview-grid">
+                <!-- New previews here -->
+            </div>
+
+            <div class="video-box">
+                <label class="form-label fw-bold small"><i class="bi bi-camera-video me-1 text-primary"></i> Video Evidence Link (Optional)</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-link-45deg"></i></span>
+                    <input type="url" id="videoLink" class="form-control border-start-0" placeholder="e.g. YouTube, Google Drive link">
+                </div>
+            </div>
+
+            <div id="existingEvidenceContainer" class="mt-4 d-none">
+                <div class="divider mb-3 border-top pt-3 fw-bold small text-muted">EXISTING EVIDENCE</div>
+                <div id="existingEvidenceList" class="preview-grid">
+                    <!-- Existing items with Delete buttons -->
+                </div>
+            </div>
+
+            <div id="oldEvidenceContainer" class="mt-4 d-none">
+                <div class="divider mb-3 border-top pt-3 fw-bold small text-muted">LOCKED EVIDENCE (REQUESTED INFO FLOW)</div>
+                <div id="oldEvidenceList" class="d-flex flex-wrap gap-3">
+                    <!-- Locked items -->
+                </div>
+            </div>
+
+            <div class="mt-5 d-flex justify-content-end gap-3">
+                <button type="button" class="btn btn-outline-secondary px-4 fw-bold" onclick="goBack()" style="border-radius:10px">Back</button>
+                <button type="submit" class="btn btn-submit px-5" id="submitBtn">Finalize Case</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="assets/data-store.js"></script>
+<script>
+    const session = CMS.requireAuth(['customer', 'employee']);
+    const caseId = localStorage.getItem('last_case_id');
+    const isMoreInfo = localStorage.getItem('is_more_info') === 'true';
+    const isEdit = localStorage.getItem('is_edit_mode') === 'true';
+    
+    let selectedFiles = [];
+    let existingCount = 0;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!caseId) { location.href = 'complaint-form.html'; return; }
+        document.getElementById('casePill').innerText = `Case #${caseId}`;
+        
+        if (isMoreInfo) {
+            document.getElementById('moreInfoBanner').classList.remove('d-none');
+            document.getElementById('moreInfoTextContainer').classList.remove('d-none');
+            loadEvidence(true); // Load locked evidence
+        } else if (isEdit) {
+            document.getElementById('pageTitle').innerText = 'Manage Case Evidence';
+            document.getElementById('submitBtn').innerText = 'Save & Return';
+            loadEvidence(false); // Load editable evidence
+        }
+    });
+
+    async function loadEvidence(isLocked) {
+        try {
+            // Also fetch complaint details to pre-fill video link and additional info
+            const cResp = await fetch(`/api/admin/complaints/${caseId}?userId=${session.id}`);
+            if (cResp.ok) {
+                const cData = await cResp.json();
+                document.getElementById('videoLink').value = cData.videoLink || '';
+                if (document.getElementById('additionalInfo')) {
+                    document.getElementById('additionalInfo').value = cData.additionalInfo || '';
+                }
+            }
+
+            const res = await fetch(`/api/complaints/${caseId}/evidence?userId=${session.id}`);
+            if (!res.ok) return;
+            const list = await res.json();
+            
+            if (isLocked) {
+                const container = document.getElementById('oldEvidenceContainer');
+                const listDiv = document.getElementById('oldEvidenceList');
+                if (list.length > 0) {
+                    container.classList.remove('d-none');
+                    list.forEach(ev => {
+                        const div = document.createElement('div');
+                        div.className = 'border rounded p-2 bg-light d-flex align-items-center gap-2';
+                        div.innerHTML = `<i class="bi bi-file-earmark-image fs-4 text-muted"></i> <span class="small fw-bold">${ev.fileName}</span> <span class="locked-badge">Locked</span>`;
+                        listDiv.appendChild(div);
+                    });
+                }
+            } else {
+                 const container = document.getElementById('existingEvidenceContainer');
+                 const listDiv = document.getElementById('existingEvidenceList');
+                 existingCount = list.length;
+                 if (list.length > 0) {
+                     container.classList.remove('d-none');
+                     list.forEach(ev => {
+                         const div = document.createElement('div');
+                         div.className = 'preview-item';
+                         div.innerHTML = `
+                            <button type="button" class="remove-btn" onclick="deleteExisting(${ev.id})"><i class="bi bi-trash-fill"></i></button>
+                            <img src="${ev.filePath}" class="preview-img">
+                            <div class="p-2 small text-muted text-center text-truncate">${ev.comment || 'Existing file'}</div>
+                         `;
+                         listDiv.appendChild(div);
+                     });
+                 }
+            }
+        } catch (e) {}
+    }
+
+    async function deleteExisting(evId) {
+        if (!confirm("Are you sure you want to delete this evidence permanently?")) return;
+        try {
+            const res = await fetch(`/api/complaints/${caseId}/evidence/${evId}?userId=${session.id}`, { method: 'DELETE' });
+            if (res.ok) {
+                showToast("Evidence removed.", "success");
+                location.reload();
+            } else {
+                showToast("Cannot delete. Case might be locked.", "error");
+            }
+        } catch (e) {
+            showToast("Error deleting file.", "error");
+        }
+    }
+
+    function handleFileSelect(e) {
+        const files = Array.from(e.target.files);
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (loadEv) => {
+                const id = Date.now() + Math.random();
+                selectedFiles.push({ id, file, preview: loadEv.target.result, comment: '' });
+                renderPreviews();
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function removeFile(id) {
+        selectedFiles = selectedFiles.filter(f => f.id !== id);
+        renderPreviews();
+    }
+
+    function renderPreviews() {
+        const grid = document.getElementById('previewGrid');
+        grid.innerHTML = '';
+        selectedFiles.forEach(f => {
+            const div = document.createElement('div');
+            div.className = 'preview-item';
+            div.innerHTML = `
+                <button type="button" class="remove-btn" onclick="removeFile(${f.id})"><i class="bi bi-trash-fill"></i></button>
+                <img src="${f.preview}" class="preview-img">
+                <input type="text" class="comment-field" placeholder="Add a comment..." onchange="updateComment(${f.id}, this.value)">
+            `;
+            grid.appendChild(div);
+        });
+    }
+
+    function updateComment(id, val) {
+        const f = selectedFiles.find(f => f.id === id);
+        if (f) f.comment = val;
+    }
+
+    function goBack() {
+        if (isEdit || isMoreInfo) {
+             window.location.href = `complaint-form.html?id=${caseId}&edit=true`;
+        } else {
+             window.location.href = 'complaint-form.html';
+        }
+    }
+
+    document.getElementById('evidenceForm').onsubmit = async (e) => {
+        e.preventDefault();
+        
+        if (!isMoreInfo && selectedFiles.length === 0 && existingCount === 0) {
+            showToast("At least one piece of evidence is required.", "error");
+            return;
+        }
+
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Finalizing...';
+
+        const formData = new FormData();
+        formData.append('userId', session.id);
+        formData.append('caseId', caseId);
+        formData.append('videoLink', document.getElementById('videoLink').value);
+        formData.append('additionalInfo', document.getElementById('additionalInfo').value);
+
+        selectedFiles.forEach(f => {
+            formData.append(`files`, f.file);
+            formData.append(`comments`, f.comment || '');
+        });
+
+        try {
+            const resp = await fetch('/api/complaints/evidence/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (resp.ok) {
+                showToast("Changes saved successfully!", "success");
+                localStorage.removeItem('last_case_id');
+                localStorage.removeItem('is_edit_mode');
+                localStorage.removeItem('is_more_info');
+                setTimeout(() => {
+                    const role = (session.role || "").toUpperCase();
+                    window.location.href = role === 'EMPLOYEE' ? 'employee-dashboard.html' : 'customer-dashboard.html';
+                }, 1500);
+            } else {
+                showToast("Failed to save. Please try again.", "error");
+                btn.disabled = false;
+                btn.innerText = "Finalize Case";
+            }
+        } catch (err) {
+            showToast("Connection error.", "error");
+            btn.disabled = false;
+            btn.innerText = "Finalize Case";
+        }
+    };
+
+    function showToast(message, type = 'info') {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;';
+            document.body.appendChild(container);
+        }
+        const el = document.createElement('div');
+        el.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} shadow-lg`;
+        el.style.cssText = 'min-width:300px;margin-bottom:0;border-radius:12px;display:flex;align-items:center;gap:12px;animation:slideIn 0.3s ease-out;';
+        el.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : 'info-circle'}"></i><span>${message}</span>`;
+        container.appendChild(el);
+        setTimeout(() => {
+             el.style.opacity = '0';
+             el.style.transform = 'translateX(20px)';
+             if (el.parentNode) setTimeout(() => el.remove(), 300);
+        }, 4000);
+    }
+</script>
+
+<style>
+@keyframes slideIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+</style>
+
+</body>
+</html>

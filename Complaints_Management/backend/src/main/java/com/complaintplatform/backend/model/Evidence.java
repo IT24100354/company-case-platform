@@ -15,6 +15,7 @@ public class Evidence {
     private String fileName;
     private String filePath;
     private String fileType;
+    private String comment;
     @Column(name = "is_locked", nullable = false)
     private boolean isLocked = false;
 
@@ -35,6 +36,8 @@ public class Evidence {
     public void setFilePath(String filePath) { this.filePath = filePath; }
     public String getFileType() { return fileType; }
     public void setFileType(String fileType) { this.fileType = fileType; }
+    public String getComment() { return comment; }
+    public void setComment(String comment) { this.comment = comment; }
     public LocalDateTime getUploadedAt() { return uploadedAt; }
     public void setUploadedAt(LocalDateTime uploadedAt) { this.uploadedAt = uploadedAt; }
 }

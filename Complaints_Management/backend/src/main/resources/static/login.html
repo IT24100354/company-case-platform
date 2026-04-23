@@ -6,6 +6,7 @@
     <title>Login – CMS</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         :root {
             --clr-primary: #2563eb;
@@ -160,7 +161,6 @@
             border: 1px solid #fee2e2;
         }
     </style>
-    </style>
 </head>
 <body>
 
@@ -195,6 +195,31 @@
                 </div>
             </div>
             <button type="submit" id="loginBtn" class="btn-login">Log In</button>
+            
+            <div class="d-flex align-items-center my-3">
+                <hr class="flex-grow-1">
+                <span class="mx-3 text-muted small fw-bold">OR</span>
+                <hr class="flex-grow-1">
+            </div>
+
+            <!-- Real Google Sign-In Widget -->
+            <div id="g_id_onload"
+                 data-client_id="275638293160-fbnt7thi76uqtc50cg3bqluau2dpmfpf.apps.googleusercontent.com"
+                 data-context="signin"
+                 data-ux_mode="popup"
+                 data-callback="handleCredentialResponse"
+                 data-auto_prompt="false">
+            </div>
+
+            <div class="g_id_signin"
+                 data-type="standard"
+                 data-shape="rectangular"
+                 data-theme="outline"
+                 data-text="signin_with"
+                 data-size="large"
+                 data-logo_alignment="left"
+                 data-width="370">
+            </div>
         </form>
 
         <div class="mt-4 text-center">
@@ -246,6 +271,44 @@
             }
         }
 
+        async function handleCredentialResponse(response) {
+            const err = document.getElementById('loginError');
+            err.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/auth/google', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential: response.credential })
+                });
+
+                if (res.ok) {
+                    const sessionData = await res.json();
+                    sessionStorage.setItem('cms_session', JSON.stringify(sessionData));
+                    finalizeLogin(sessionData.role);
+                } else {
+                    const data = await res.json();
+                    err.innerText = data.message || 'Google account not recognized.';
+                    err.style.display = 'block';
+                }
+            } catch (e) {
+                err.innerText = 'Server connection error.';
+                err.style.display = 'block';
+            }
+        }
+
+        function finalizeLogin(role) {
+            const routes = {
+                 SUPER_ADMIN: 'super-admin-dashboard.html',
+                 ADMIN: 'admin-dashboard.html',
+                 COMPANY_ADMIN: 'company-admin-dashboard.html',
+                 DEPT_USER: 'department-dashboard.html',
+                 CUSTOMER: 'customer-dashboard.html',
+                 EMPLOYEE: 'employee-dashboard.html'
+            };
+            window.location.href = routes[role.toUpperCase()] || 'login.html';
+        }
+
         async function handleLogin(e) {
             e.preventDefault();
             const btn = document.getElementById('loginBtn');
@@ -269,18 +332,7 @@
                 if (res.ok) {
                     const sessionData = await res.json();
                     sessionStorage.setItem('cms_session', JSON.stringify(sessionData));
-                    const role = sessionData.role.toUpperCase();
-
-                    const routes = {
-                         SUPER_ADMIN: 'super-admin-dashboard.html',
-                         ADMIN: 'admin-dashboard.html',
-                         COMPANY_ADMIN: 'company-admin-dashboard.html',
-                         DEPT_USER: 'department-dashboard.html',
-                         CUSTOMER: 'customer-dashboard.html',
-                         EMPLOYEE: 'employee-dashboard.html'
-                    };
-
-                    window.location.href = routes[role] || 'login.html';
+                    finalizeLogin(sessionData.role);
                 } else {
                     err.innerText = 'Invalid username or password.';
                     err.style.display = 'block';

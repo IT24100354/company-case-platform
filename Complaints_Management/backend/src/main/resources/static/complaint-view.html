@@ -141,13 +141,19 @@
                 }
                 container.innerHTML = list.map(ev => {
                     let icon = 'bi-file-earmark';
-                    if (ev.fileType.includes('image')) icon = 'bi-file-earmark-image';
-                    else if (ev.fileType.includes('pdf')) icon = 'bi-file-earmark-pdf';
-                    else if (ev.fileType.includes('video')) icon = 'bi-file-earmark-play';
+                    let color = '#64748b';
+                    const ft = ev.fileType.toLowerCase();
+                    const fn = ev.fileName.toLowerCase();
+                    
+                    if (ft.includes('image')) { icon = 'bi-file-earmark-image'; color = '#10b981'; }
+                    else if (ft.includes('pdf')) { icon = 'bi-file-earmark-pdf-fill'; color = '#ef4444'; }
+                    else if (ft.includes('word') || fn.endsWith('.doc') || fn.endsWith('.docx')) { icon = 'bi-file-earmark-word-fill'; color = '#2563eb'; }
+                    else if (ft.includes('zip') || fn.endsWith('.zip') || fn.endsWith('.rar')) { icon = 'bi-file-earmark-zip-fill'; color = '#f59e0b'; }
+                    else if (ft.includes('video')) { icon = 'bi-file-earmark-play-fill'; color = '#6366f1'; }
                     
                     return `
                         <a href="${ev.filePath}" target="_blank" class="evidence-card text-decoration-none text-dark">
-                            <i class="bi ${icon} evidence-icon"></i>
+                            <i class="bi ${icon} evidence-icon" style="color: ${color}"></i>
                             <span class="small fw-semibold text-truncate w-100 text-center">${ev.fileName}</span>
                             <span class="text-muted" style="font-size:0.65rem">Click to view</span>
                         </a>

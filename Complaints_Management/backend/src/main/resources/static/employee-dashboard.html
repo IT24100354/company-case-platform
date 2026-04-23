@@ -53,11 +53,10 @@
         <table class="table table-hover">
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Topic</th>
+                    <th>Case ID</th>
                     <th>Category</th>
+                    <th>Date Submitted</th>
                     <th>Status</th>
-                    <th>Submitted</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -87,24 +86,48 @@
         const res = await fetch(`/api/complaints?userId=${session.id}`);
         const data = await res.json();
         const tbody = document.getElementById('complaintTable');
-        tbody.innerHTML = data.length ? '' : '<tr><td colspan="6" class="text-center text-muted py-4">No complaints found.</td></tr>';
+        if (!data.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-5"><i class="bi bi-inbox d-block fs-1 mb-2 opacity-25"></i>No complaints found.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = '';
 
         data.forEach(c => {
+            let actionBtn = '';
+            const uStatus = (c.status || '').toUpperCase();
+            
+            if (uStatus === 'PENDING') {
+                actionBtn = `<button class="btn btn-sm btn-warning fw-bold px-3" style="border-radius:8px" onclick="editEvidence(${c.id}, false)"><i class="bi bi-pencil-square me-1"></i> Edit Evidence</button>`;
+            } else if (uStatus === 'MORE_INFO_REQUIRED') {
+                actionBtn = `<button class="btn btn-sm btn-danger fw-bold px-3" style="border-radius:8px" onclick="editEvidence(${c.id}, true)"><i class="bi bi-plus-circle me-1"></i> Add More Evidence</button>`;
+            } else if (uStatus === 'RESOLVED') {
+                actionBtn = `<button class="btn btn-sm btn-success fw-bold px-3" style="border-radius:8px" onclick="viewResolution(${c.id})"><i class="bi bi-shield-check me-1"></i> View Resolution</button>`;
+            } else {
+                actionBtn = `<button class="btn btn-sm btn-outline-primary fw-bold px-3" style="border-radius:8px" onclick="viewDetails(${c.id})"><i class="bi bi-eye"></i> View Details</button>`;
+            }
+
             tbody.innerHTML += `
                 <tr>
-                    <td><span class="fw-bold text-primary">#${c.id}</span></td>
-                    <td>${c.title}</td>
-                    <td>${c.category}</td>
+                    <td><span class="fw-bold text-primary">CMP-${String(c.id).padStart(3,'0')}</span></td>
+                    <td>${c.category || 'General'}</td>
+                    <td class="small text-muted">${new Date(c.createdAt).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})}</td>
                     <td>${CMS.statusBadge(c.status)}</td>
-                    <td class="small text-muted">${new Date(c.createdAt).toLocaleDateString()}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-primary" style="border-radius:8px" onclick="window.location.href='complaint-view.html?id=${c.id}'">
-                            <i class="bi bi-eye"></i> View
-                        </button>
-                    </td>
+                    <td><div class="d-flex gap-2">${actionBtn}</div></td>
                 </tr>
             `;
         });
+    }
+
+    function editEvidence(id) {
+        window.location.href = `complaint-form.html?id=${id}&edit=true`;
+    }
+
+    function viewDetails(id) {
+        window.location.href = `complaint-view.html?id=${id}`;
+    }
+
+    function viewResolution(id) {
+        window.location.href = `complaint-view.html?id=${id}#resolution`;
     }
 
     async function loadNotifications() {

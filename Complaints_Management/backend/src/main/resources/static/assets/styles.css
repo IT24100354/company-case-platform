@@ -377,12 +377,13 @@ body {
 .badge-approved { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
 .badge-rejected { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
 .badge-forwarded { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
+.badge-notviewed { background: #fff7ed; color: #c2410c; border-color: #ffedd5; }
 .badge-viewed { background: #f3f4f6; color: #374151; border-color: #e5e7eb; }
-.badge-inprogress { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
+.badge-inprogress { background: #fff7ed; color: #c2410c; border-color: #ffedd5; }
 .badge-overdue { background: #450a0a; color: #fecaca; border-color: #7f1d1d; }
 .badge-resolutionsent { background: #f3e8ff; color: #7e22ce; border-color: #e9d5ff; }
 .badge-resolutionrejected { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
-.badge-resolved { background: #064e3b; color: #d1fae5; border-color: #065f46; }
+.badge-resolved { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
 
 /* ── Priority Badges ── */
 .priority-low { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }

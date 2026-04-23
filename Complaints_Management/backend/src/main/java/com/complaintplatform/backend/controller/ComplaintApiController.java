@@ -4,6 +4,7 @@ import com.complaintplatform.backend.model.*;
 import com.complaintplatform.backend.repository.*;
 import com.complaintplatform.backend.service.ComplaintService;
 import com.complaintplatform.backend.service.NotificationService;
+import com.complaintplatform.backend.service.AiService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,14 +27,14 @@ public class ComplaintApiController {
     private final ResolutionRepository resolutionRepo;
     private final EvidenceRepository evidenceRepo;
     private final ChatMessageRepository chatRepo;
+    private final AiService aiService;
 
     @Value("${cms.upload.path}")
     private String uploadDir;
-
     public ComplaintApiController(ComplaintService complaintService, ComplaintRepository complaintRepo,
                                    UserRepository userRepo, NotificationService notifService,
                                    ResolutionRepository resolutionRepo, EvidenceRepository evidenceRepo,
-                                   ChatMessageRepository chatRepo) {
+                                   ChatMessageRepository chatRepo, AiService aiService) {
         this.complaintService = complaintService;
         this.complaintRepo = complaintRepo;
         this.userRepo = userRepo;
@@ -41,6 +42,33 @@ public class ComplaintApiController {
         this.resolutionRepo = resolutionRepo;
         this.evidenceRepo = evidenceRepo;
         this.chatRepo = chatRepo;
+        this.aiService = aiService;
+    }
+
+    @GetMapping("/{id}/ai-summary")
+    public ResponseEntity<?> getAiSummary(@PathVariable Long id) {
+        Complaint c = complaintRepo.findById(id).orElseThrow();
+        
+        if (c.getAiSummary() != null && !c.getAiSummary().isBlank()) {
+            return ResponseEntity.ok(Map.of("summary", c.getAiSummary()));
+        }
+
+        String summary = aiService.generateSummary(c);
+        c.setAiSummary(summary);
+        complaintRepo.save(c);
+
+        return ResponseEntity.ok(Map.of("summary", summary, "ai_summary", summary));
+    }
+
+    @PostMapping("/{id}/ai-summary/regenerate")
+    public ResponseEntity<?> regenerateAiSummary(@PathVariable Long id) {
+        Complaint c = complaintRepo.findById(id).orElseThrow();
+        
+        String summary = aiService.generateSummary(c);
+        c.setAiSummary(summary);
+        complaintRepo.save(c);
+
+        return ResponseEntity.ok(Map.of("summary", summary, "success", true));
     }
 
     @PostMapping(value = "/submit", consumes = { "multipart/form-data" })
@@ -52,9 +80,20 @@ public class ComplaintApiController {
             @RequestParam(value = "companyName", required = false) String companyName,
             @RequestParam(value = "department", required = false) String department,
             @RequestParam(value = "category", required = false) String category,
-            @RequestParam(value = "documentFile", required = false) MultipartFile documentFile,
-            @RequestParam(value = "videoFile", required = false) MultipartFile videoFile,
-            @RequestParam(value = "voiceFile", required = false) MultipartFile voiceFile) {
+            @RequestParam(value = "files", required = false) MultipartFile[] files,
+            @RequestParam(value = "comments", required = false) String[] comments,
+            @RequestParam(value = "incidentDate", required = false) String incidentDateStr,
+            @RequestParam(value = "witnessName", required = false) String witnessName,
+            @RequestParam(value = "previouslyReported", required = false) boolean previouslyReported,
+            @RequestParam(value = "urgency", required = false) boolean urgency,
+            @RequestParam(value = "orderReference", required = false) String orderReference,
+            @RequestParam(value = "desiredSolution", required = false) String desiredSolution,
+            @RequestParam(value = "otherDepartment", required = false) String otherDept,
+            @RequestParam(value = "otherCategory", required = false) String otherCat,
+            @RequestParam(value = "otherSolution", required = false) String otherSol, 
+            @RequestParam(value = "videoLink", required = false) String videoLink) {
+        
+        System.out.println("DEBUG: submit called. title=" + title + ", dept=" + department + ", cat=" + category + ", date=" + incidentDateStr + ", otherDept=" + otherDept + ", otherCat=" + otherCat + ", sol=" + desiredSolution);
 
         System.out.println("DEBUG: Submission received from userId: " + userId + " - Title: " + title);
         
@@ -80,12 +119,45 @@ public class ComplaintApiController {
             c.setStatus(Complaint.Status.PENDING);
             c.setCreatedAt(LocalDateTime.now());
             
+            if (incidentDateStr != null && !incidentDateStr.isBlank()) {
+                c.setDateOfIncident(LocalDateTime.parse(incidentDateStr + "T00:00:00"));
+            }
+            c.setWitnessName(witnessName);
+            c.setPreviouslyReported(previouslyReported);
+            c.setUrgency(urgency);
+            c.setOrderReference(orderReference);
+            c.setDesiredSolution(desiredSolution);
+            c.setOtherDepartment(otherDept);
+            c.setOtherCategory(otherCat);
+            c.setOtherSolution(otherSol);
+            c.setVideoLink(videoLink);
+            
             final Complaint saved = complaintRepo.save(c);
 
-            // Process Files
-            saveEvidence(saved, userId, documentFile, "DOCUMENT");
-            saveEvidence(saved, userId, videoFile, "VIDEO");
-            saveEvidence(saved, userId, voiceFile, "VOICE");
+            // Process Evidence Items
+            if (files != null) {
+                for (int i = 0; i < files.length; i++) {
+                    try {
+                        String fileName = files[i].getOriginalFilename();
+                        String savedName = "EV-" + System.currentTimeMillis() + "-" + fileName;
+                        Path path = Paths.get(uploadDir).resolve(savedName);
+                        Files.createDirectories(path.getParent());
+                        System.out.println("DEBUG: Saving file " + fileName + " for complaint " + saved.getId());
+                        Files.copy(files[i].getInputStream(), path);
+
+                        Evidence ev = new Evidence();
+                        ev.setCaseId(String.valueOf(saved.getId()));
+                        ev.setUserId(String.valueOf(userId));
+                        ev.setFileName(fileName);
+                        ev.setFilePath("uploads/" + savedName);
+                        ev.setFileType(files[i].getContentType());
+                        if (comments != null && i < comments.length) ev.setComment(comments[i]);
+                        evidenceRepo.save(ev);
+                    } catch (Exception ex) {
+                        System.err.println("Failed to save evidence: " + ex.getMessage());
+                    }
+                }
+            }
 
             // Notify Super Admin
             userRepo.findByRole(User.Role.SUPER_ADMIN).stream().findFirst().ifPresent(sa -> {
@@ -122,16 +194,28 @@ public class ComplaintApiController {
         evidenceRepo.save(ev);
     }
 
-    @PutMapping("/{id}")
+    @RequestMapping(value = {"/{id}", "/{id}/update"}, method = {RequestMethod.PUT, RequestMethod.POST})
     public ResponseEntity<?> update(
             @PathVariable Long id,
             @RequestParam("userId") Long userId,
             @RequestParam("title") String title,
             @RequestParam("description") String description,
             @RequestParam(value = "category", required = false) String category,
-            @RequestParam(value = "documentFile", required = false) MultipartFile documentFile,
-            @RequestParam(value = "videoFile", required = false) MultipartFile videoFile,
-            @RequestParam(value = "voiceFile", required = false) MultipartFile voiceFile) {
+            @RequestParam(value = "files", required = false) MultipartFile[] files,
+            @RequestParam(value = "comments", required = false) String[] comments,
+            @RequestParam(value = "incidentDate", required = false) String incidentDateStr,
+            @RequestParam(value = "witnessName", required = false) String witnessName,
+            @RequestParam(value = "previouslyReported", required = false) boolean previouslyReported,
+            @RequestParam(value = "urgency", required = false) boolean urgency,
+            @RequestParam(value = "orderReference", required = false) String orderReference,
+            @RequestParam(value = "department", required = false) String department,
+            @RequestParam(value = "desiredSolution", required = false) String desiredSolution,
+            @RequestParam(value = "otherDepartment", required = false) String otherDept,
+            @RequestParam(value = "otherCategory", required = false) String otherCat,
+            @RequestParam(value = "otherSolution", required = false) String otherSol,
+            @RequestParam(value = "videoLink", required = false) String videoLink) {
+
+        System.out.println("DEBUG: update called for id=" + id + ". title=" + title + ", dept=" + department + ", cat=" + category + ", date=" + incidentDateStr + ", otherDept=" + otherDept + ", otherCat=" + otherCat + ", sol=" + desiredSolution);
 
         System.out.println("DEBUG: Update request for ID: " + id + " by userId: " + userId);
         
@@ -153,13 +237,46 @@ public class ComplaintApiController {
             c.setTitle(title);
             c.setDescription(description);
             if (category != null) c.setCategory(category);
+            if (department != null) c.setDepartment(department);
+            
+            if (incidentDateStr != null && !incidentDateStr.isBlank()) {
+                c.setDateOfIncident(LocalDateTime.parse(incidentDateStr + "T00:00:00"));
+            }
+            c.setWitnessName(witnessName);
+            c.setPreviouslyReported(previouslyReported);
+            c.setUrgency(urgency);
+            c.setOrderReference(orderReference);
+            c.setDesiredSolution(desiredSolution);
+            c.setOtherDepartment(otherDept);
+            c.setOtherCategory(otherCat);
+            c.setOtherSolution(otherSol);
+            c.setVideoLink(videoLink);
             
             final Complaint saved = complaintRepo.save(c);
 
-            // Process Files
-            saveEvidence(saved, userId, documentFile, "DOCUMENT");
-            saveEvidence(saved, userId, videoFile, "VIDEO");
-            saveEvidence(saved, userId, voiceFile, "VOICE");
+            // Process New Evidence
+            if (files != null) {
+                for (int i = 0; i < files.length; i++) {
+                    try {
+                        String fileName = files[i].getOriginalFilename();
+                        String savedName = "EV-" + System.currentTimeMillis() + "-" + fileName;
+                        Path path = Paths.get(uploadDir).resolve(savedName);
+                        Files.createDirectories(path.getParent());
+                        Files.copy(files[i].getInputStream(), path);
+
+                        Evidence ev = new Evidence();
+                        ev.setCaseId(String.valueOf(id));
+                        ev.setUserId(String.valueOf(userId));
+                        ev.setFileName(fileName);
+                        ev.setFilePath("uploads/" + savedName);
+                        ev.setFileType(files[i].getContentType());
+                        if (comments != null && i < comments.length) ev.setComment(comments[i]);
+                        evidenceRepo.save(ev);
+                    } catch (Exception ex) {
+                        System.err.println("Failed to save file in update: " + ex.getMessage());
+                    }
+                }
+            }
 
             return ResponseEntity.ok(Map.of("success", true));
 
@@ -169,13 +286,63 @@ public class ComplaintApiController {
         }
     }
 
+    private String mapStatusForRole(Complaint c, User.Role role) {
+        Complaint.Status s = c.getStatus();
+        
+        switch (s) {
+            case FORWARDED_TO_COMPANY:
+                // For SA and Reg Admin, we show "FORWARDED"
+                if (role == User.Role.SUPER_ADMIN || role == User.Role.ADMIN) return "FORWARDED";
+                // For the Company receiving it, it's "NOT_VIEWED" until they open it
+                if (role == User.Role.COMPANY_ADMIN) return "NOT_VIEWED";
+                // For the Complainant, it's "IN_PROGRESS"
+                return "IN_PROGRESS";
+                
+            case VIEWED_BY_COMPANY:
+                if (role == User.Role.SUPER_ADMIN || role == User.Role.ADMIN || role == User.Role.COMPANY_ADMIN) return "VIEWED";
+                return "IN_PROGRESS";
+                
+            case FORWARDED_TO_DEPT:
+                if (role == User.Role.COMPANY_ADMIN) return "FORWARDED";
+                return "IN_PROGRESS";
+
+            case MORE_INFO_REQUIRED:
+                return "MORE_INFO_REQUIRED";
+
+            case RESOLUTION_SENT:
+                if (role == User.Role.SUPER_ADMIN || role == User.Role.ADMIN) return "RESOLUTION_RECEIVED";
+                return "RESOLUTION_SENT";
+
+            case RESOLUTION_REJECTED:
+                if (role == User.Role.CUSTOMER || role == User.Role.EMPLOYEE) return "IN_PROGRESS";
+                return "RESOLUTION_REJECTED";
+
+            case RECEIVED_RESOLUTION:
+                return "PENDING_RESOLUTION";
+
+            case FORWARDED: // Legacy Fallback
+                if (role == User.Role.COMPANY_ADMIN) return "NOT_VIEWED";
+                return "FORWARDED";
+
+            case VIEWED: // Legacy Fallback
+                return "VIEWED";
+                
+            case APPROVED:
+                // Ensure even if it's approved, if it was forwarded but somehow stuck, we catch it?
+                // Actually, if it's APPROVED in DB, we return APPROVED. 
+                return "APPROVED";
+
+            default:
+                return s.name();
+        }
+    }
+
     @GetMapping
     public ResponseEntity<?> list(
             @RequestParam(value = "userId", required = false) Long userId,
             @RequestParam(value = "status", required = false) String status) {
 
         if (userId == null) {
-            // Only Super Admin should call without userId generally, but for safety returning empty if not SA
             return ResponseEntity.ok(Collections.emptyList());
         }
 
@@ -227,16 +394,21 @@ public class ComplaintApiController {
             map.put("submittedAt", c.getCreatedAt());
             map.put("dueDate", c.getDueDate());
             map.put("priority", c.getPriority());
+            map.put("videoLink", c.getVideoLink());
+            map.put("additionalInfo", c.getAdditionalInfo());
+            map.put("assignedAdminId", c.getAssignedAdminId());
+            map.put("dateOfIncident", c.getDateOfIncident());
+            map.put("witnessName", c.getWitnessName());
+            map.put("urgency", c.isUrgency());
+            map.put("orderReference", c.getOrderReference());
+            map.put("desiredSolution", c.getDesiredSolution());
+            map.put("otherSolution", c.getOtherSolution());
+            map.put("otherDepartment", c.getOtherDepartment());
+            map.put("otherCategory", c.getOtherCategory());
+            map.put("previouslyReported", c.isPreviouslyReported());
             
-            // Logic for visible status
-            String statusStr = c.getStatus().name();
-            if (c.getStatus() == Complaint.Status.FORWARDED) {
-                // If it was forwarded to a department already, other roles see it as IN_PROGRESS
-                if (c.getDepartmentUserId() != null && user.getRole() != User.Role.COMPANY_ADMIN) {
-                    statusStr = "IN_PROGRESS";
-                }
-            }
-            map.put("status", statusStr);
+            // Single source of truth applied: Mapped per role requirements
+            map.put("status", mapStatusForRole(c, user.getRole()));
             return map;
         }).toList());
     }
@@ -255,8 +427,8 @@ public class ComplaintApiController {
                              return ResponseEntity.status(403).body(Map.of("error", "Access denied for this company."));
                         }
                         // Status Update: VIEWED
-                        if (c.getStatus() == Complaint.Status.APPROVED || c.getStatus() == Complaint.Status.FORWARDED) {
-                            c.setStatus(Complaint.Status.VIEWED);
+                        if (c.getStatus() == Complaint.Status.APPROVED || c.getStatus() == Complaint.Status.FORWARDED_TO_COMPANY || c.getStatus() == Complaint.Status.FORWARDED) {
+                            c.setStatus(Complaint.Status.VIEWED_BY_COMPANY);
                             c.setViewedByCompanyAt(LocalDateTime.now());
                             complaintRepo.save(c);
                         }
@@ -265,7 +437,7 @@ public class ComplaintApiController {
                             return ResponseEntity.status(403).body(Map.of("error", "Access denied for this department."));
                         }
                         // Status Update: IN_PROGRESS
-                        if (c.getStatus() == Complaint.Status.VIEWED || c.getStatus() == Complaint.Status.FORWARDED) {
+                        if (c.getStatus() == Complaint.Status.VIEWED_BY_COMPANY || c.getStatus() == Complaint.Status.VIEWED || c.getStatus() == Complaint.Status.FORWARDED_TO_DEPT) {
                             c.setStatus(Complaint.Status.IN_PROGRESS);
                             complaintRepo.save(c);
                         }
@@ -280,15 +452,27 @@ public class ComplaintApiController {
                     Map<String, Object> map = new HashMap<>(); // Using HashMap to avoid modifying original Entity if possible, but simpler to just return a Map
                     map.put("id", c.getId()); map.put("title", c.getTitle()); map.put("description", c.getDescription());
                     map.put("category", c.getCategory()); map.put("complainantType", c.getComplainantType());
-                    map.put("status", statusStr); 
+                    map.put("status", mapStatusForRole(c, user.getRole())); 
                     map.put("createdAt", c.getCreatedAt());
                     map.put("submittedAt", c.getCreatedAt());
                     map.put("dueDate", c.getDueDate());
                     map.put("companyId", c.getCompanyId()); map.put("companyName", c.getCompanyName());
                     map.put("department", c.getDepartment()); map.put("complainantName", c.getComplainantName());
                     map.put("priority", c.getPriority());
+                    map.put("videoLink", c.getVideoLink());
+                    map.put("additionalInfo", c.getAdditionalInfo());
+                    map.put("assignedAdminId", c.getAssignedAdminId());
+                    map.put("dateOfIncident", c.getDateOfIncident());
+                    map.put("witnessName", c.getWitnessName());
+                    map.put("urgency", c.isUrgency());
+                    map.put("orderReference", c.getOrderReference());
+                    map.put("desiredSolution", c.getDesiredSolution());
+                    map.put("otherSolution", c.getOtherSolution());
+                    map.put("otherDepartment", c.getOtherDepartment());
+                    map.put("otherCategory", c.getOtherCategory());
+                    map.put("previouslyReported", c.isPreviouslyReported());
                     
-                    // Add other fields that might be needed by detail views
+                    System.out.println("DEBUG: getOne id=" + id + " returning data: " + map);
                     
                     return ResponseEntity.ok(map);
                 })
@@ -361,12 +545,26 @@ public class ComplaintApiController {
     @PostMapping("/{id}/forward")
     public ResponseEntity<?> forward(@PathVariable Long id, @RequestParam("userId") Long userId, @RequestBody Map<String, String> body) {
         Complaint c = complaintRepo.findById(id).orElseThrow();
-        User user = userRepo.findById(userId).orElseThrow();
-        if (user.getRole() == User.Role.ADMIN && (c.getAssignedAdminId() == null || !c.getAssignedAdminId().equals(userId))) {
+        User actor = userRepo.findById(userId).orElseThrow();
+        
+        if (actor.getRole() == User.Role.ADMIN && (c.getAssignedAdminId() == null || !c.getAssignedAdminId().equals(userId))) {
             return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
         }
+        
         String priority = body.get("priority");
-        return ResponseEntity.ok(complaintService.forward(id, priority));
+        Complaint saved = complaintService.forward(id, priority);
+        
+        // Notify Assigned Admin if Super Admin forwarded it
+        if (actor.getRole() == User.Role.SUPER_ADMIN && c.getAssignedAdminId() != null) {
+            notifService.createNotification(c.getAssignedAdminId(), saved.getId(), "FORWARDED", "Complaint Forwarded", 
+                "Super Admin has forwarded complaint #" + id + " to the company with " + priority + " priority.");
+        }
+        
+        // Notify Complainant
+        notifService.createNotification(c.getComplainantId(), saved.getId(), "STATUS_UPDATE", "Complaint Forwarded", 
+            "Your complaint '" + c.getTitle() + "' has been forwarded to the company for investigation.");
+
+        return ResponseEntity.ok(saved);
     }
 
     @PostMapping("/{id}/forward-to-dept")
@@ -383,7 +581,7 @@ public class ComplaintApiController {
         
         c.setDepartmentUserId(deptUserId);
         c.setDepartment(deptName);
-        c.setStatus(Complaint.Status.FORWARDED);
+        c.setStatus(Complaint.Status.FORWARDED_TO_DEPT);
         c.setSentToDepartmentAt(LocalDateTime.now());
         Complaint saved = complaintRepo.save(c);
         
@@ -568,26 +766,37 @@ public class ComplaintApiController {
         return ResponseEntity.ok(Map.of("url", e.getFilePath(), "fileName", e.getFileName()));
     }
 
+    @jakarta.transaction.Transactional
     @DeleteMapping("/{id}/evidence/{evidenceId}")
     public ResponseEntity<?> deleteEvidence(@PathVariable Long id, @PathVariable Long evidenceId, @RequestParam("userId") Long userId) {
+        System.out.println("DEBUG: DELETE /" + id + "/evidence/" + evidenceId + " by User: " + userId);
         User user = userRepo.findById(userId).orElseThrow();
         Complaint c = complaintRepo.findById(id).orElseThrow();
 
-        if (user.getRole() != User.Role.SUPER_ADMIN && !c.getComplainantId().equals(userId)) {
-            return ResponseEntity.status(403).body(Map.of("error", "Access denied."));
+        System.out.println("DEBUG: Complaint owner: " + c.getComplainantId() + " Status: " + c.getStatus());
+
+        if (user.getRole() != User.Role.SUPER_ADMIN && (c.getComplainantId() == null || !c.getComplainantId().equals(userId))) {
+            return ResponseEntity.status(403).body(Map.of("error", "Access denied. Ownership mismatch."));
         }
 
-        if (c.getStatus() != Complaint.Status.PENDING) {
-            return ResponseEntity.status(400).body(Map.of("error", "Evidence can only be deleted while complaint is PENDING."));
+        if (c.getStatus() != Complaint.Status.PENDING && c.getStatus() != Complaint.Status.MORE_INFO_REQUIRED) {
+            return ResponseEntity.status(400).body(Map.of("error", "Evidence can only be deleted while complaint is PENDING or MORE_INFO_REQUIRED."));
         }
 
         return evidenceRepo.findById(evidenceId)
                 .map(e -> {
                     try {
-                        String pathStr = e.getFilePath();
-                        if (pathStr.startsWith("/")) pathStr = pathStr.substring(1);
-                        Path path = Paths.get("src/main/resources/static").resolve(pathStr);
-                        Files.deleteIfExists(path);
+                        String filePath = e.getFilePath();
+                        // Handle both / and \ for cross-platform robustness
+                        String fileName = filePath;
+                        int lastSlash = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
+                        if (lastSlash != -1) fileName = filePath.substring(lastSlash + 1);
+                        
+                        Path path = Paths.get(uploadDir).resolve(fileName);
+                        
+                        System.out.println("DEBUG: Attempting to delete physical file at: " + path.toAbsolutePath());
+                        boolean deleted = Files.deleteIfExists(path);
+                        System.out.println("DEBUG: Physical file deletion result: " + deleted);
                     } catch (Exception ex) {
                         System.err.println("Failed to delete physical file: " + ex.getMessage());
                     }
@@ -595,6 +804,58 @@ public class ComplaintApiController {
                     return ResponseEntity.ok(Map.of("success", true));
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+    @PostMapping("/evidence/upload")
+    public ResponseEntity<?> uploadEvidence(
+            @RequestParam("caseId") Long caseId,
+            @RequestParam("userId") Long userId,
+            @RequestParam(value = "files", required = false) MultipartFile[] files,
+            @RequestParam(value = "comments", required = false) String[] comments,
+            @RequestParam(value = "videoLink", required = false) String videoLink,
+            @RequestParam(value = "additionalInfo", required = false) String additionalInfo) {
+
+        Optional<Complaint> compOpt = complaintRepo.findById(caseId);
+        if (compOpt.isEmpty()) return ResponseEntity.notFound().build();
+        Complaint c = compOpt.get();
+
+        if (!c.getComplainantId().equals(userId)) return ResponseEntity.status(403).build();
+
+        if (additionalInfo != null && !additionalInfo.isBlank()) {
+            c.setAdditionalInfo(additionalInfo);
+        }
+        if (videoLink != null && !videoLink.isBlank()) {
+            c.setVideoLink(videoLink);
+        }
+        complaintRepo.save(c);
+
+        if (files != null) {
+            for (int i = 0; i < files.length; i++) {
+                try {
+                    String fileName = files[i].getOriginalFilename();
+                    String savedName = "EV-" + System.currentTimeMillis() + "-" + fileName;
+                    Path path = Paths.get(uploadDir).resolve(savedName);
+                    Files.createDirectories(path.getParent());
+                    Files.copy(files[i].getInputStream(), path);
+
+                    Evidence ev = new Evidence();
+                    ev.setCaseId(String.valueOf(caseId));
+                    ev.setUserId(String.valueOf(userId));
+                    ev.setFileName(fileName);
+                    ev.setFilePath("uploads/" + savedName);
+                    ev.setFileType(files[i].getContentType());
+                    if (comments != null && i < comments.length) ev.setComment(comments[i]);
+                    
+                    evidenceRepo.save(ev);
+                } catch (Exception e) { e.printStackTrace(); }
+            }
+        }
+
+        if (c.getStatus() == Complaint.Status.MORE_INFO_REQUIRED) {
+            c.setStatus(Complaint.Status.IN_PROGRESS);
+        }
+        complaintRepo.save(c);
+
+        return ResponseEntity.ok(Map.of("success", true, "id", c.getId()));
     }
 
     @GetMapping("/debug-stats")

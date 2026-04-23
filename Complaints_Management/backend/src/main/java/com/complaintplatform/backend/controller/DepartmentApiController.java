@@ -73,4 +73,22 @@ public class DepartmentApiController {
                 .collect(Collectors.toList());
         return ResponseEntity.ok(users);
     }
+
+    @DeleteMapping("/user/{userId}")
+    public ResponseEntity<?> deleteDepartmentUser(@PathVariable Long userId) {
+        return userRepo.findById(userId).map(u -> {
+            if (u.getRole() != User.Role.DEPT_USER) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Only department users can be deleted here"));
+            }
+            
+            // Also try to find and delete the Department entity matched by name and companyId
+            departmentRepo.findAll().stream()
+                .filter(d -> d.getName().equals(u.getDepartment()) && d.getCompanyId().equals(u.getCompanyId()))
+                .findFirst()
+                .ifPresent(d -> departmentRepo.delete(d));
+                
+            userRepo.delete(u);
+            return ResponseEntity.ok(Map.of("success", true, "message", "Department and portal removed"));
+        }).orElse(ResponseEntity.notFound().build());
+    }
 }

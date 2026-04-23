@@ -12,13 +12,18 @@ public class Complaint {
         PENDING,
         APPROVED,
         REJECTED,
-        FORWARDED,
-        VIEWED,
+        FORWARDED_TO_COMPANY,
+        VIEWED_BY_COMPANY,
+        FORWARDED_TO_DEPT,
         IN_PROGRESS,
         RECEIVED_RESOLUTION,
         RESOLUTION_SENT,
         RESOLUTION_REJECTED,
-        RESOLVED
+        RESOLVED,
+        MORE_INFO_REQUIRED,
+        // Legacy support if needed
+        FORWARDED,
+        VIEWED
     }
 
     @Id
@@ -73,6 +78,23 @@ public class Complaint {
     @Column(name = "is_locked", nullable = false)
     private boolean isLocked = false;
 
+    private LocalDateTime dateOfIncident;
+    private String witnessName;
+    private boolean previouslyReported = false;
+    private boolean urgency = false;
+    private String orderReference;
+    private String desiredSolution;
+    private String otherDepartment;
+    private String otherCategory;
+    private String otherSolution;
+    private String videoLink;
+    
+    @Column(columnDefinition = "TEXT")
+    private String additionalInfo;
+
+    @Column(columnDefinition = "TEXT")
+    private String aiSummary;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getTitle() { return title; }
@@ -122,4 +144,30 @@ public class Complaint {
 
     public boolean isLocked() { return isLocked; }
     public void setLocked(boolean locked) { isLocked = locked; }
+
+    public LocalDateTime getDateOfIncident() { return dateOfIncident; }
+    public void setDateOfIncident(LocalDateTime dateOfIncident) { this.dateOfIncident = dateOfIncident; }
+    public String getWitnessName() { return witnessName; }
+    public void setWitnessName(String witnessName) { this.witnessName = witnessName; }
+    public boolean isPreviouslyReported() { return previouslyReported; }
+    public void setPreviouslyReported(boolean previouslyReported) { this.previouslyReported = previouslyReported; }
+    public boolean isUrgency() { return urgency; }
+    public void setUrgency(boolean urgency) { this.urgency = urgency; }
+    public String getOrderReference() { return orderReference; }
+    public void setOrderReference(String orderReference) { this.orderReference = orderReference; }
+    public String getDesiredSolution() { return desiredSolution; }
+    public void setDesiredSolution(String desiredSolution) { this.desiredSolution = desiredSolution; }
+    public String getOtherDepartment() { return otherDepartment; }
+    public void setOtherDepartment(String otherDepartment) { this.otherDepartment = otherDepartment; }
+    public String getOtherCategory() { return otherCategory; }
+    public void setOtherCategory(String otherCategory) { this.otherCategory = otherCategory; }
+    public String getOtherSolution() { return otherSolution; }
+    public void setOtherSolution(String otherSolution) { this.otherSolution = otherSolution; }
+    public String getVideoLink() { return videoLink; }
+    public void setVideoLink(String videoLink) { this.videoLink = videoLink; }
+    public String getAdditionalInfo() { return additionalInfo; }
+    public void setAdditionalInfo(String additionalInfo) { this.additionalInfo = additionalInfo; }
+
+    public String getAiSummary() { return aiSummary; }
+    public void setAiSummary(String aiSummary) { this.aiSummary = aiSummary; }
 }

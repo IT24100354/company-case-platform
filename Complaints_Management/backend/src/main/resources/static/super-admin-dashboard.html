@@ -314,7 +314,7 @@
                     <option value="REJECTED">REJECTED</option>
                     <option value="VIEWED">VIEWED</option>
                     <option value="IN_PROGRESS">IN_PROGRESS</option>
-                    <option value="RECEIVED_RESOLUTION">RECEIVED_RESOLUTION</option>
+                    <option value="RESOLUTION_RECEIVED">RESOLUTION_RECEIVED</option>
                     <option value="RESOLUTION_REJECTED">RESOLUTION_REJECTED</option>
                     <option value="RESOLVED">RESOLVED</option>
                 </select>
@@ -430,7 +430,14 @@
             await loadData();
             await loadNotifications();
             CMS.pollUnreadCounts();
-            setView('CUSTOMER'); 
+
+            const params = new URLSearchParams(window.location.search);
+            const viewParam = params.get('view');
+            if (viewParam && (viewParam === 'CUSTOMER' || viewParam === 'EMPLOYEE')) {
+                setView(viewParam);
+            } else {
+                setView('CUSTOMER'); 
+            }
 
             // Auto-refresh every 30 seconds
             setInterval(() => {
