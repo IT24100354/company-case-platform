@@ -86,7 +86,8 @@
     });
 
     function goBack() {
-        if (session.role === 'EMPLOYEE') window.location.href = 'employee-dashboard.html';
+        const role = (session.role || "").toUpperCase();
+        if (role === 'EMPLOYEE') window.location.href = 'employee-dashboard.html';
         else window.location.href = 'customer-dashboard.html';
     }
 
@@ -100,9 +101,12 @@
             document.getElementById('c-ref').textContent = `#${c.id}`;
             document.getElementById('c-date').textContent = new Date(c.createdAt).toLocaleString();
             document.getElementById('c-desc').textContent = c.description;
-            document.getElementById('c-cat').textContent = c.category || 'General';
+            const catText = c.category === 'Other' ? `Other (${c.otherCategory || 'N/A'})` : (c.category || 'General');
+            const deptText = c.department === 'Other' ? `Other (${c.otherDepartment || 'N/A'})` : (c.department || 'General');
+
+            document.getElementById('c-cat').textContent = catText;
             document.getElementById('c-company').textContent = c.companyName || 'N/A';
-            document.getElementById('c-dept').textContent = c.department || 'General';
+            document.getElementById('c-dept').textContent = deptText;
             document.getElementById('status-badge').innerHTML = CMS.statusBadge(c.status);
 
             const actions = document.getElementById('action-buttons');
@@ -116,7 +120,7 @@
             // If PENDING, show Edit button
             if (c.status === 'PENDING') {
                 actions.innerHTML += `
-                    <button class="btn btn-primary shadow-sm" style="border-radius:10px" onclick="window.location.href='complaint-form.html?editId=${complaintId}'">
+                    <button class="btn btn-primary shadow-sm" style="border-radius:10px" onclick="window.location.href='complaint-form.html?id=${complaintId}&edit=true'">
                         <i class="bi bi-pencil-square me-1"></i> Edit Complaint
                     </button>
                 `;

@@ -280,6 +280,10 @@
                 companyContainer.innerHTML = `
                     <label class="cms-label" for="company">Company Name</label>
                     <input type="text" id="company" class="cms-input" placeholder="Enter your company name" required />
+                    <div class="mt-3">
+                        <label class="cms-label" for="companyPolicies">Company Policies (Returns, Exchange, etc.)</label>
+                        <textarea id="companyPolicies" class="cms-input" rows="3" placeholder="Enter return policies, exchange conditions, terms, etc."></textarea>
+                    </div>
                 `;
                 
                 document.getElementById('nic').required = true;
@@ -373,7 +377,8 @@
                 nic: getVal('nic'),
                 employeeId: getVal('employeeId'),
                 companyName: getVal('company'),
-                registrationNumber: getVal('registrationNumber')
+                registrationNumber: getVal('registrationNumber'),
+                companyPolicies: getVal('companyPolicies')
             };
 
             fetch('/api/auth/register', {

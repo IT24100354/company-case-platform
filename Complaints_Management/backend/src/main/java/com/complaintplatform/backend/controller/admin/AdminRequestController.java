@@ -62,6 +62,7 @@ public class AdminRequestController {
                     Company company = new Company();
                     company.setName(user.getCompanyName());
                     company.setDescription("Registered by " + user.getFullName());
+                    company.setCompanyPolicies(user.getCompanyPolicies());
                     Company savedCompany = companyRepository.save(company);
                     user.setCompanyId(savedCompany.getId());
                 }

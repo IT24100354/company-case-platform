@@ -118,8 +118,16 @@
     <div id="tab-resolutions" class="tab-content">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h2 class="fw-bold mb-1">Incoming Resolutions</h2>
-                <p class="text-muted small">Review fixes submitted by departments.</p>
+                <h2 class="fw-bold mb-1">Resolutions Management</h2>
+                <p class="text-muted small">Review fixes submitted by departments and track resolved cases.</p>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <span class="text-sm fw-bold text-muted">Filter:</span>
+                <select id="resolutionFilter" class="form-select shadow-sm" style="width: 200px; border-radius: 10px;" onchange="loadAllResolutions()">
+                    <option value="ALL" selected>All (Pending & Resolved)</option>
+                    <option value="PENDING">Awaiting Review</option>
+                    <option value="RESOLVED">Resolved History</option>
+                </select>
             </div>
         </div>
         <div class="cms-card p-0">
@@ -129,7 +137,8 @@
                         <tr>
                             <th>Case ID</th>
                             <th>Resolution Title</th>
-                            <th>Submitted From</th>
+                            <th>From Dept</th>
+                            <th>Status</th>
                             <th>Date</th>
                             <th class="text-end">Actions</th>
                         </tr>
@@ -396,19 +405,43 @@
         const res = await fetch(`/api/complaints?userId=${session.id}`);
         const complaints = await res.json();
         const tbody = document.getElementById('resolutionTable');
-        const resolving = complaints.filter(c => c.status === 'RESOLUTION_SENT');
-        if (!resolving.length) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5 text-muted">No pending resolutions to review.</td></tr>';
+        const filter = document.getElementById('resolutionFilter').value;
+        
+        // Include both current review cases and historical resolved ones
+        // We match PENDING_RESOLUTION, RESOLUTION_SENT, RESOLUTION_RECEIVED and RESOLVED
+        let filtered = complaints.filter(c => {
+            const s = (c.status || '').toUpperCase();
+            return s === 'RESOLUTION_SENT' || 
+                   s === 'RESOLVED' || 
+                   s === 'RESOLUTION_RECEIVED' ||
+                   s === 'PENDING_RESOLUTION';
+        });
+
+        if (filter === 'PENDING') {
+            filtered = filtered.filter(c => {
+                const s = (c.status || '').toUpperCase();
+                return s.includes('RESOLUTION');
+            });
+        } else if (filter === 'RESOLVED') {
+            filtered = filtered.filter(c => (c.status || '').toUpperCase() === 'RESOLVED');
+        }
+
+        if (!filtered.length) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-muted">No ${filter === 'PENDING' ? 'pending ' : (filter === 'RESOLVED' ? 'resolved ' : '')}resolutions found.</td></tr>`;
             return;
         }
-        tbody.innerHTML = resolving.map(c => `
+
+        tbody.innerHTML = filtered.map(c => `
             <tr>
                 <td><span class="fw-bold text-primary">CMP-${String(c.id).padStart(3, '0')}</span></td>
-                <td><div class="fw-semibold">${c.title}</div></td>
-                <td><span class="badge bg-light text-dark">${c.department || 'Department'}</span></td>
-                <td class="small text-muted">Awaiting Review</td>
+                <td><div class="fw-semibold text-truncate" style="max-width:250px">${c.title}</div></td>
+                <td><span class="badge bg-light text-dark shadow-xs">${c.department || 'Department'}</span></td>
+                <td>${CMS.statusBadge(c.status)}</td>
+                <td class="small text-muted">${CMS.fmtDate(c.resolvedAt || c.updatedAt || c.createdAt)}</td>
                 <td class="text-end">
-                    <button class="btn btn-sm btn-primary" onclick="viewComplaint(${c.id})">Review Resolution</button>
+                    <button class="btn btn-sm ${c.status.toUpperCase() === 'RESOLVED' ? 'btn-outline-primary' : 'btn-primary'} fw-bold" style="border-radius:8px" onclick="viewComplaint(${c.id})">
+                        ${c.status.toUpperCase() === 'RESOLVED' ? 'View Details' : 'Review Resolution'}
+                    </button>
                 </td>
             </tr>
         `).join('');

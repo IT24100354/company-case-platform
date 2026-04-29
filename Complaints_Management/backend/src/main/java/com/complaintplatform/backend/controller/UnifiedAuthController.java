@@ -46,6 +46,7 @@ public class UnifiedAuthController {
         String employeeId = request.get("employeeId");
         String companyName = request.get("companyName");
         String registrationNumber = request.get("registrationNumber");
+        String companyPolicies = request.get("companyPolicies");
         
         if (userRepository.findByUsername(username).isPresent()) {
             return ResponseEntity.status(400).body(Map.of("message", "Username already exists."));
@@ -77,6 +78,7 @@ public class UnifiedAuthController {
         user.setEmployeeId(employeeId);
         user.setCompanyName(companyName);
         user.setRegistrationNumber(registrationNumber);
+        user.setCompanyPolicies(companyPolicies);
         
         // Find company ID if possible (only for roles that link to existing companies, like EMPLOYEE)
         if (companyName != null && role == User.Role.EMPLOYEE) {
@@ -176,6 +178,7 @@ public class UnifiedAuthController {
         resp.put("profileImageUrl", user.getProfileImageUrl());
         resp.put("nic", user.getNic());
         resp.put("registrationNumber", user.getRegistrationNumber());
+        resp.put("companyPolicies", user.getCompanyPolicies());
         resp.put("email", user.getEmail());
         return resp;
     }
@@ -280,12 +283,24 @@ public class UnifiedAuthController {
         if (newName != null && !newName.isBlank()) user.setFullName(newName);
         if (newEmail != null && !newEmail.isBlank()) user.setEmail(newEmail);
         if (newPassword != null && !newPassword.isBlank()) user.setPassword(passwordEncoder.encode(newPassword));
+        
+        String newCompanyPolicies = (String) request.get("companyPolicies");
+        if (newCompanyPolicies != null) {
+            user.setCompanyPolicies(newCompanyPolicies);
+            if (user.getCompanyId() != null) {
+                companyRepository.findById(user.getCompanyId()).ifPresent(company -> {
+                    company.setCompanyPolicies(newCompanyPolicies);
+                    companyRepository.save(company);
+                });
+            }
+        }
 
         User saved = userRepository.save(user);
         Map<String, Object> respData = new HashMap<>();
         respData.put("fullName", saved.getFullName());
         respData.put("email", saved.getEmail());
         respData.put("profileImageUrl", saved.getProfileImageUrl());
+        respData.put("companyPolicies", saved.getCompanyPolicies());
         respData.put("success", true);
         return ResponseEntity.ok(respData);
     }

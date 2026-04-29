@@ -114,7 +114,7 @@
                 </div>
 
                 <div id="customerFields" class="row g-4 m-0 d-none">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label" for="custCat">Category <span class="text-danger">*</span></label>
                         <select id="custCat" class="form-select" onchange="toggleOtherField('custCat', 'otherCatItemCust')">
                             <option value="">Select Category</option>
@@ -122,14 +122,7 @@
                         </select>
                         <div id="otherCatItemCust" class="other-field-container d-none"><input type="text" id="otherCatCust" class="form-control" placeholder="Specify Category"></div>
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="custDept">Department <span class="text-danger">*</span></label>
-                        <select id="custDept" class="form-select">
-                            <option value="">Select Department</option>
-                            <option value="HR">HR</option><option value="Finance">Finance</option><option value="IT">IT</option><option value="Sales">Sales</option><option value="Support">Support</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label" for="orderRef">Order Ref # (Optional)</label>
                         <input type="text" id="orderRef" class="form-control">
                     </div>
@@ -218,6 +211,12 @@
                     4. The resolution time varies based on priority and case complexity.<br>
                     5. You will cooperate with the investigation team if required.
                 </div>
+                
+                <div id="companyPoliciesContainer" class="d-none">
+                    <h6 class="fw-bold mt-3 mb-2" style="font-size: 0.9rem; color: #334155;">Company Specific Policies</h6>
+                    <div id="companyPoliciesText" class="bg-light p-3 rounded-2 small text-muted mb-4" style="max-height: 200px; overflow-y: auto; white-space: pre-wrap;">
+                    </div>
+                </div>
                 <div class="form-check small mb-0">
                     <input class="form-check-input" type="checkbox" id="modalTermsCheck">
                     <label class="form-check-label fw-bold" for="modalTermsCheck">
@@ -245,6 +244,7 @@
     
     let newFiles = [];
     let existingCount = 0;
+    let companyList = [];
 
     document.addEventListener('DOMContentLoaded', async () => {
         setupDates();
@@ -295,8 +295,6 @@
             } else {
                 document.getElementById('companySelect').value = data.companyId || '';
                 setSelectValue('custCat', data.category, 'otherCatCust', data.otherCategory, 'otherCatItemCust');
-                console.log("DEBUG: Setting custDept to:", data.department);
-                document.getElementById('custDept').value = data.department || '';
                 document.getElementById('orderRef').value = data.orderReference || '';
                 
                 // Load Desired Resolution
@@ -442,9 +440,9 @@
 
     async function fetchCompanies() {
         const res = await fetch('/api/companies');
-        const list = await res.json();
+        companyList = await res.json();
         const select = document.getElementById('companySelect');
-        list.forEach(c => {
+        companyList.forEach(c => {
             const opt = document.createElement('option');
             opt.value = c.id; opt.textContent = c.name; select.appendChild(opt);
         });
@@ -515,6 +513,20 @@
             return;
         }
 
+        if (!isEmployee) {
+            const compId = document.getElementById('companySelect').value;
+            const comp = companyList.find(c => c.id == compId);
+            const policiesDiv = document.getElementById('companyPoliciesContainer');
+            const policiesText = document.getElementById('companyPoliciesText');
+            if (comp && comp.companyPolicies) {
+                policiesDiv.classList.remove('d-none');
+                policiesText.innerText = comp.companyPolicies;
+            } else {
+                policiesDiv.classList.add('d-none');
+                policiesText.innerText = '';
+            }
+        }
+
         const modal = new bootstrap.Modal(document.getElementById('termsModal'));
         modal.show();
     }
@@ -543,12 +555,12 @@
         formData.append('videoLink', document.getElementById('videoLink').value);
 
         if (isEmployee) {
-            formData.append('companyId', session.companyId);
+            formData.append('companyId', session.companyId || '');
             formData.append('companyName', session.companyName || '');
-            formData.append('department', document.getElementById('empDept').value);
-            formData.append('otherDepartment', document.getElementById('otherDept').value);
-            formData.append('category', document.getElementById('empCat').value);
-            formData.append('otherCategory', document.getElementById('otherCat').value);
+            formData.append('department', document.getElementById('empDept').value || '');
+            formData.append('otherDepartment', document.getElementById('otherDept').value || '');
+            formData.append('category', document.getElementById('empCat').value || '');
+            formData.append('otherCategory', document.getElementById('otherCat').value || '');
         } else {
             const sel = document.getElementById('companySelect');
             formData.append('companyId', sel.value);
@@ -557,7 +569,6 @@
             }
             formData.append('category', document.getElementById('custCat').value);
             formData.append('otherCategory', document.getElementById('otherCatCust').value);
-            formData.append('department', document.getElementById('custDept').value);
             formData.append('orderReference', document.getElementById('orderRef').value);
             
             const solRadio = document.querySelector('input[name="solution"]:checked');

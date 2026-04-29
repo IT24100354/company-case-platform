@@ -127,6 +127,11 @@
                     <small class="text-muted">Username cannot be changed.</small>
                 </div>
 
+                <div class="form-group" id="company-policies-group" style="display:none;">
+                    <label class="form-label">Company Policies (Returns, Exchange, etc.)</label>
+                    <textarea id="company-policies" class="form-control" rows="4" placeholder="Enter return policies, exchange conditions, terms, etc."></textarea>
+                </div>
+
                 <hr class="my-4">
 
                 <div class="form-group">
@@ -169,6 +174,12 @@
             document.getElementById('email').value = session.email || '';
             document.getElementById('username').value = session.username || '';
             document.getElementById('profile-display-name').textContent = session.fullName || 'User';
+            
+            if (role === 'COMPANY_ADMIN') {
+                document.getElementById('company-policies-group').style.display = 'block';
+                document.getElementById('company-policies').value = session.companyPolicies || '';
+            }
+            
             updateAvatar(session);
         });
 
@@ -228,15 +239,21 @@
                     }
                 }
 
+                const payload = {
+                    id: session.id,
+                    fullName: fullName,
+                    email: email,
+                    password: newPassword || null
+                };
+                
+                if (session.role.toUpperCase() === 'COMPANY_ADMIN') {
+                    payload.companyPolicies = document.getElementById('company-policies').value;
+                }
+
                 const resp = await fetch('/api/auth/profile/update', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        id: session.id,
-                        fullName: fullName,
-                        email: email,
-                        password: newPassword || null
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 if (resp.ok) {
@@ -244,6 +261,7 @@
                     session.fullName = data.fullName;
                     session.email = data.email;
                     if (data.profileImageUrl) session.profileImageUrl = data.profileImageUrl;
+                    if (data.companyPolicies !== undefined) session.companyPolicies = data.companyPolicies;
                     sessionStorage.setItem('cms_session', JSON.stringify(session));
                     
                     document.getElementById('profile-display-name').textContent = session.fullName;

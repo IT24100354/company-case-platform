@@ -99,7 +99,7 @@ public class ComplaintApiController {
         
         try {
             Long companyId = null;
-            if (companyIdStr != null && !companyIdStr.isBlank() && !companyIdStr.equals("undefined")) {
+            if (companyIdStr != null && !companyIdStr.isBlank() && !companyIdStr.equals("undefined") && !companyIdStr.equals("null")) {
                 companyId = Long.parseLong(companyIdStr);
             }
 

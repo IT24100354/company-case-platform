@@ -40,6 +40,8 @@ public class User {
     private String companyName;
     private String department;
     private String registrationNumber;
+    @Column(columnDefinition = "TEXT")
+    private String companyPolicies;
     private boolean enabled = false;
 
     @Column(nullable = false)
@@ -73,6 +75,8 @@ public class User {
     public void setDepartment(String department) { this.department = department; }
     public String getRegistrationNumber() { return registrationNumber; }
     public void setRegistrationNumber(String registrationNumber) { this.registrationNumber = registrationNumber; }
+    public String getCompanyPolicies() { return companyPolicies; }
+    public void setCompanyPolicies(String companyPolicies) { this.companyPolicies = companyPolicies; }
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public LocalDateTime getCreatedAt() { return createdAt; }
