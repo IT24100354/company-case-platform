@@ -38,18 +38,25 @@ public class AiService {
         context.append("Title: ").append(complaint.getTitle()).append("\n");
         context.append("Description: ").append(complaint.getDescription()).append("\n");
 
+        System.out.println("DEBUG: AI Summary Generation for Complaint #" + complaint.getId());
+        
         List<Evidence> evidenceList = evidenceRepo.findByCaseId(String.valueOf(complaint.getId()));
         if (!evidenceList.isEmpty()) {
-            context.append("\nEvidence Analysis:\n");
+            context.append("\nEvidence Analysis from Attached Documents:\n");
             for (Evidence ev : evidenceList) {
                 String text = extractText(ev);
                 if (text != null && !text.isBlank()) {
-                    context.append("[File: ").append(ev.getFileName()).append("]:\n")
-                           .append(text.substring(0, Math.min(text.length(), 2000))).append("\n");
+                    System.out.println("DEBUG: Extracted " + text.length() + " chars from " + ev.getFileName());
+                    context.append("[Content of Evidence File: ").append(ev.getFileName()).append("]:\n")
+                           .append(text.substring(0, Math.min(text.length(), 3000))).append("\n\n");
                 } else {
-                    context.append("[Attached File: ").append(ev.getFileName()).append(" (Type: ").append(ev.getFileType()).append(")] - Content not directly readable.\n");
+                    System.out.println("DEBUG: No text extracted from " + ev.getFileName());
+                    context.append("[Note: Evidence File attached: ").append(ev.getFileName())
+                           .append(" (Type: ").append(ev.getFileType()).append(")] - Supporting document provided but text content not extractable.\n");
                 }
             }
+        } else {
+            System.out.println("DEBUG: No evidence files found for Complaint #" + complaint.getId());
         }
 
         return callAiApi(context.toString());
@@ -57,18 +64,29 @@ public class AiService {
 
     private String extractText(Evidence ev) {
         try {
-            // Path structure check: usually /uploads/xxx
-            String fileName = ev.getFilePath();
+            String filePath = ev.getFilePath();
+            // Robust path handling for both "uploads/..." and "/uploads/..."
+            String fileName = filePath;
             if (fileName.startsWith("/uploads/")) {
                 fileName = fileName.substring(9);
+            } else if (fileName.startsWith("uploads/")) {
+                fileName = fileName.substring(8);
             }
-            Path path = Paths.get(uploadDir, fileName);
+            
+            Path path = Paths.get(uploadDir).resolve(fileName);
             File file = path.toFile();
+            
+            System.out.println("DEBUG: Processing Evidence: " + ev.getFileName());
+            System.out.println("DEBUG: Resolved Path: " + path.toAbsolutePath());
+            System.out.println("DEBUG: File Exists: " + file.exists());
+
             if (file.exists()) {
-                return tika.parseToString(file);
+                // Tika will automatically detect type and extract text from PDF, DOCX, TXT, etc.
+                String extracted = tika.parseToString(file);
+                return extracted;
             }
         } catch (Exception e) {
-            System.err.println("Failed to extract text from " + ev.getFileName() + ": " + e.getMessage());
+            System.err.println("CRITICAL: Failed to extract text from " + ev.getFileName() + ": " + e.getMessage());
         }
         return null;
     }
@@ -112,19 +130,29 @@ public class AiService {
     }
 
     private String simulateAiSummary(String content) {
-        // Sophisticated fallback logic to create a decent summary if real AI is unavailable
+        // Fallback logic that acknowledges evidence if present in the prompt
         String title = "";
         String desc = "";
+        boolean hasEvidenceText = content.contains("[Content of Evidence File:");
+        boolean hasEvidenceAttached = content.contains("[Note: Evidence File attached:");
+        
         String[] lines = content.split("\n");
         for (String line : lines) {
             if (line.startsWith("Title: ")) title = line.substring(7);
             if (line.startsWith("Description: ")) desc = line.substring(13);
         }
         
-        String summary = "The complaint regarding '" + title + "' involves " + 
-                         (desc.length() > 50 ? desc.substring(0, 50) + "..." : desc) + 
-                         ". Detailed evidence is attached for review.";
+        StringBuilder summary = new StringBuilder();
+        summary.append("The complaint '").append(title).append("' regarding ").append(desc.length() > 60 ? desc.substring(0, 60) + "..." : desc);
         
-        return "AI Summary (Local Gen): " + summary;
+        if (hasEvidenceText) {
+            summary.append(" is supported by details found in the attached documents, indicating a mismatch or discrepancy.");
+        } else if (hasEvidenceAttached) {
+            summary.append(". Supporting documents are attached, though their text could not be fully analyzed.");
+        } else {
+            summary.append(". No additional evidence documents were found.");
+        }
+        
+        return "AI Summary (Local Gen): " + summary.toString();
     }
 }
