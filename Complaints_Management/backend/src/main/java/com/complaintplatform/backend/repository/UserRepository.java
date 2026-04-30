@@ -9,4 +9,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByUsername(String username);
     List<User> findByRole(User.Role role);
     List<User> findByRoleAndCompanyId(User.Role role, Long companyId);
+    @org.springframework.data.jpa.repository.Query("SELECT u FROM User u WHERE LOWER(TRIM(u.registrationNumber)) = LOWER(TRIM(:registrationNumber))")
+    Optional<User> findByRegistrationNumber(String registrationNumber);
 }

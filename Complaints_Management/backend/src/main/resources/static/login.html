@@ -18,18 +18,23 @@
             --clr-danger: #e11d48;
             --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
         }
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+        }
         body {
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
             background: #f1f5f9;
             font-family: 'Inter', system-ui, sans-serif;
             overflow: hidden;
             position: relative;
         }
 
-        /* --- Background Animations --- */
+        /* --- Background Blobs (Static) --- */
         .bg-blob {
             position: absolute;
             width: 500px;
@@ -38,22 +43,14 @@
             filter: blur(80px);
             border-radius: 50%;
             z-index: -1;
-            animation: float 20s infinite alternate ease-in-out;
         }
         .blob-1 { top: -100px; left: -100px; }
-        .blob-2 { bottom: -100px; right: -100px; animation-delay: -5s; }
-        
-        @keyframes float {
-            0% { transform: translate(0, 0) rotate(0deg) scale(1); }
-            33% { transform: translate(100px, 50px) rotate(120deg) scale(1.1); }
-            66% { transform: translate(-50px, 150px) rotate(240deg) scale(0.9); }
-            100% { transform: translate(0, 0) rotate(360deg) scale(1); }
-        }
+        .blob-2 { bottom: -100px; right: -100px; }
 
         /* --- Card Animation --- */
         @keyframes cardEntrance {
-            from { opacity: 0; transform: translateY(30px) scale(0.98); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         .login-card {
@@ -65,7 +62,6 @@
             backdrop-filter: blur(10px);
             box-shadow: var(--shadow);
             border: 1px solid rgba(255, 255, 255, 0.5);
-            animation: cardEntrance 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .logo-text {

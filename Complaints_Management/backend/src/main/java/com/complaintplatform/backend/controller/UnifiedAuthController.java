@@ -45,11 +45,24 @@ public class UnifiedAuthController {
         String nic = request.get("nic");
         String employeeId = request.get("employeeId");
         String companyName = request.get("companyName");
-        String registrationNumber = request.get("registrationNumber");
+        String registrationNumber = request.get("registrationNumber") != null ? request.get("registrationNumber").trim() : null;
         String companyPolicies = request.get("companyPolicies");
         
         if (userRepository.findByUsername(username).isPresent()) {
             return ResponseEntity.status(400).body(Map.of("message", "Username already exists."));
+        }
+
+        if (registrationNumber != null && !registrationNumber.isBlank()) {
+            if (userRepository.findByRegistrationNumber(registrationNumber).isPresent()) {
+                return ResponseEntity.status(400).body(Map.of("message", "Company registration number already exists."));
+            }
+        }
+
+        // NIC Validation: 10 characters (9 digits + V/v) or 10 digits
+        if (nic != null && !nic.isBlank()) {
+            if (!nic.matches("^([0-9]{9}[Vv]|[0-9]{10})$")) {
+                return ResponseEntity.status(400).body(Map.of("message", "Invalid NIC format. Must be 9 digits followed by 'V' or 10 digits."));
+            }
         }
 
         User.Role role = User.Role.valueOf(roleStr.toUpperCase());

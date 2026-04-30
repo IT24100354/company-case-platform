@@ -22,6 +22,16 @@ public class DatabaseSeeder {
                                    CompanyEmployeeRepository employeeRepo,
                                    JdbcTemplate jdbcTemplate, PasswordEncoder encoder) {
         return args -> {
+            // Manual cleanup of duplicate/invalid accounts
+            userRepo.findByUsername("vk").ifPresent(u -> {
+                System.out.println("SEEDER: Deleting requested user 'vk'...");
+                userRepo.delete(u);
+            });
+            userRepo.findByUsername("company2").ifPresent(u -> {
+                System.out.println("SEEDER: Deleting requested user 'company2'...");
+                userRepo.delete(u);
+            });
+
             // 1. Essential Core Initialization (If super admin missing)
             if (userRepo.findByUsername("braveena").isEmpty()) {
                 System.out.println("SEEDER: Fresh start. Initializing core data...");

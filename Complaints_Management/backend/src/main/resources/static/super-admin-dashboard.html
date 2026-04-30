@@ -104,8 +104,9 @@
 
         .badge-pending { background: #fef3c7; color: #92400e; }
         .badge-approved { background: #dcfce7; color: #166534; }
-        .badge-rejected { background: #fee2e2; color: #991b1b; }
-        .badge-viewed { background: #e0f2fe; color: #075985; }
+        .status-badge.badge-pending { background: #fff7ed; color: #9a3412; }
+        .status-badge.badge-active { background: #f0fdf4; color: #166534; }
+        .status-badge.badge-viewed { background: #f0f9ff; color: #075985; }
         .badge-forwarded { background: #f3e8ff; color: #6b21a8; }
         .badge-inprogress { background: #fff7ed; color: #9a3412; }
         .badge-resolutionsent { background: #e0e7ff; color: #3730a3; }
@@ -253,6 +254,10 @@
             
             <a href="#" class="nav-link" id="nav-company-approval" onclick="setView('COMPANY_APPROVAL')"><i class="bi bi-building-check"></i> Company Approval</a>
             <a href="#" class="nav-link" id="nav-admin-approval" onclick="setView('ADMIN_APPROVAL')"><i class="bi bi-person-lock"></i> Admin Approval</a>
+            
+            <a href="#" class="nav-link" id="nav-companies" onclick="setView('APPROVED_COMPANIES')"><i class="bi bi-building"></i> Companies</a>
+            <a href="#" class="nav-link" id="nav-employees" onclick="setView('ACTIVE_EMPLOYEES')"><i class="bi bi-people"></i> Employees</a>
+
             <a href="#" class="nav-link" id="nav-announcements" onclick="setView('ANNOUNCEMENTS')"><i class="bi bi-megaphone"></i> Announcements</a>
 
             <div class="mt-auto p-4 position-absolute bottom-0 w-100">
@@ -333,7 +338,12 @@
         <div class="complaint-table-card">
             <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
                 <span class="fw-bold" id="table-title">Customer Complaints</span>
-                <span class="badge bg-light text-dark fw-bold" id="row-count">0 items</span>
+                <div class="d-flex align-items-center gap-2">
+                    <button id="cleanup-btn" class="btn btn-sm btn-outline-danger" style="display:none; border-radius:8px;" onclick="runCleanup()">
+                        <i class="bi bi-trash-fill me-1"></i> Cleanup Duplicates
+                    </button>
+                    <span class="badge bg-light text-dark fw-bold" id="row-count">0 items</span>
+                </div>
             </div>
             <div class="table-responsive">
                 <table class="complaint-table">
@@ -513,11 +523,15 @@
             // Toggle sidebar links
             const navComp = document.getElementById('nav-company-approval');
             const navAdmin = document.getElementById('nav-admin-approval');
+            const navCompanies = document.getElementById('nav-companies');
+            const navEmployees = document.getElementById('nav-employees');
             const navAnn = document.getElementById('nav-announcements');
             const navDash = document.querySelector('.sa-sidebar .nav-link:first-child');
             
             if(navComp) navComp.classList.toggle('active', view === 'COMPANY_APPROVAL');
             if(navAdmin) navAdmin.classList.toggle('active', view === 'ADMIN_APPROVAL');
+            if(navCompanies) navCompanies.classList.toggle('active', view === 'APPROVED_COMPANIES');
+            if(navEmployees) navEmployees.classList.toggle('active', view === 'ACTIVE_EMPLOYEES');
             if(navAnn) {
                 navAnn.classList.toggle('active', view === 'ANNOUNCEMENTS');
                 announcementMode = 'LIST'; // Reset to list view when tab is clicked
@@ -527,13 +541,36 @@
             if(navDash) navDash.classList.toggle('active', view === 'CUSTOMER' || view === 'EMPLOYEE');
             
             const titleEl = document.getElementById('table-title');
+            const cleanupBtn = document.getElementById('cleanup-btn');
+            if (cleanupBtn) cleanupBtn.style.display = (view === 'COMPANY_APPROVAL') ? 'block' : 'none';
+
             if (view === 'CUSTOMER') titleEl.textContent = 'Customer Complaints';
             else if (view === 'EMPLOYEE') titleEl.textContent = 'Employee Complaints';
             else if (view === 'COMPANY_APPROVAL') titleEl.textContent = 'Company Registration Requests';
             else if (view === 'ADMIN_APPROVAL') titleEl.textContent = 'Admin Registration Requests';
+            else if (view === 'APPROVED_COMPANIES') titleEl.textContent = 'Approved Companies';
+            else if (view === 'ACTIVE_EMPLOYEES') titleEl.textContent = 'Active Employees';
             else if (view === 'ANNOUNCEMENTS') titleEl.textContent = 'System Announcements';
             
             renderCurrentTable();
+        }
+
+        async function runCleanup() {
+            if (!confirm("This will permanently delete 'VK', 'company2', and any other duplicate registration requests. Continue?")) return;
+            
+            try {
+                const resp = await fetch('/api/admin/requests/cleanup-duplicates', { method: 'POST' });
+                const data = await resp.json();
+                if (resp.ok) {
+                    showToast(data.message, 'success');
+                    renderCurrentTable();
+                } else {
+                    showToast(data.message || 'Cleanup failed', 'error');
+                }
+            } catch (e) {
+                console.error("Cleanup error", e);
+                showToast("Server error during cleanup", "error");
+            }
         }
 
         async function renderAnnouncementsList() {
@@ -700,6 +737,9 @@
                             <td><span class="status-badge badge-pending">PENDING</span></td>
                             <td class="text-center">
                                 <div class="d-flex gap-2 justify-content-center">
+                                    <button class="btn btn-sm btn-outline-primary" title="View PDF" onclick="downloadPDF(${r.id})">
+                                        <i class="bi bi-file-earmark-pdf"></i>
+                                    </button>
                                     <button class="btn btn-sm btn-success" title="Approve" onclick="approveUser(${r.id}, '${r.name}')">
                                         <i class="bi bi-check-lg"></i>
                                     </button>
@@ -712,6 +752,48 @@
                     `).join('');
                 } catch (e) {
                     console.error("Failed to fetch requests", e);
+                    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error loading data.</td></tr>`;
+                }
+                return;
+            }
+
+            if (currentView === 'APPROVED_COMPANIES' || currentView === 'ACTIVE_EMPLOYEES') {
+                // Render Companies or Employees
+                tableHead.innerHTML = `
+                    <tr>
+                        <th>Name</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        ${currentView === 'APPROVED_COMPANIES' ? '<th>Company Name</th><th>Reg Number</th>' : '<th>Company</th><th>Employee ID</th>'}
+                        <th>NIC</th>
+                        <th>Status</th>
+                    </tr>
+                `;
+
+                try {
+                    const endpoint = currentView === 'APPROVED_COMPANIES' ? '/api/admin/requests/companies' : '/api/admin/requests/employees';
+                    const resp = await fetch(endpoint);
+                    const users = await resp.json();
+                    
+                    rowCountEl.textContent = `${users.length} items`;
+
+                    if (users.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-5 text-muted">No ${currentView === 'APPROVED_COMPANIES' ? 'companies' : 'employees'} found.</td></tr>`;
+                        return;
+                    }
+
+                    tbody.innerHTML = users.map(u => `
+                        <tr>
+                            <td><div class="fw-bold">${u.fullName}</div></td>
+                            <td><code>${u.username}</code></td>
+                            <td>${u.email || 'N/A'}</td>
+                            ${currentView === 'APPROVED_COMPANIES' ? `<td>${u.companyName}</td><td>${u.registrationNumber}</td>` : `<td>${u.companyName}</td><td>${u.employeeId || 'N/A'}</td>`}
+                            <td>${u.nic || 'N/A'}</td>
+                            <td><span class="status-badge badge-active">ACTIVE</span></td>
+                        </tr>
+                    `).join('');
+                } catch (e) {
+                    console.error("Failed to fetch users", e);
                     tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error loading data.</td></tr>`;
                 }
                 return;
@@ -1095,6 +1177,10 @@
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
+        }
+
+        function downloadPDF(id) {
+            window.open(`/api/admin/requests/${id}/pdf`, '_blank');
         }
     </script>
 </body>

@@ -239,6 +239,22 @@
             console.log("Selected role:", selectedRole);
         }
 
+        async function loadCompanies() {
+            try {
+                const res = await fetch('/api/public/companies');
+                if (res.ok) {
+                    const companies = await res.json();
+                    const select = document.getElementById('company');
+                    if (select) {
+                        select.innerHTML = '<option value="">Select Company</option>' + 
+                            companies.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to load companies", e);
+            }
+        }
+
         function handleRoleSubmit() {
             if (!selectedRole) {
                 document.getElementById('role-error').classList.add('show');
@@ -260,13 +276,10 @@
                 companyContainer.innerHTML = `
                     <label class="cms-label" for="company">Company Name</label>
                     <select id="company" class="cms-input" required>
-                        <option value="">Select Company</option>
-                        <option value="SLT Digital">SLT Digital</option>
-                        <option value="Lanka Electronics">Lanka Electronics</option>
-                        <option value="QuickShop.lk">QuickShop.lk</option>
-                        <option value="ABC Garments">ABC Garments</option>
+                        <option value="">Loading Companies...</option>
                     </select>
                 `;
+                loadCompanies();
                 
                 document.getElementById('nic').required = true;
                 document.getElementById('employeeId').required = true;
@@ -355,6 +368,12 @@
             }
             if (p1 !== p2) {
                 showToast('Passwords do not match.', 'error');
+                return;
+            }
+
+            const nicVal = document.getElementById('nic').value.trim();
+            if (nicVal && !/^([0-9]{9}[Vv]|[0-9]{10})$/.test(nicVal)) {
+                showToast('Invalid NIC format. Use 9 digits + V or 10 digits.', 'error');
                 return;
             }
 

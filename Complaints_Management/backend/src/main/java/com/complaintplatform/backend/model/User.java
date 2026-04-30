@@ -39,6 +39,7 @@ public class User {
     private Long companyId;
     private String companyName;
     private String department;
+    @Column(unique = true)
     private String registrationNumber;
     @Column(columnDefinition = "TEXT")
     private String companyPolicies;
