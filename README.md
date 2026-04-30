@@ -41,7 +41,7 @@ This platform enables customers and employees to submit complaints, attach suppo
 
 ## Key Features
 
-### 📝 Complaint Management
+### Complaint Management
 - Create complaints with title, description, and category
 - Select company and department
 - Upload multiple types of evidence
@@ -124,10 +124,6 @@ This platform enables customers and employees to submit complaints, attach suppo
 ### Tools
 - Git & GitHub
 - IntelliJ IDEA
-
----
-
-## Project Structure
 
 
 project-root/
